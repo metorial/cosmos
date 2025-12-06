@@ -1,0 +1,14 @@
+FROM golang:1.25-alpine
+
+WORKDIR /test
+
+RUN apk add --no-cache git make curl
+
+ENV GOTOOLCHAIN=auto
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+CMD ["go", "test", "-v", "./test/e2e/...", "-timeout", "10m"]

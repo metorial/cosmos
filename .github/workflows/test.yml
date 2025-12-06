@@ -1,0 +1,122 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Set GOTOOLCHAIN
+        run: echo "GOTOOLCHAIN=auto" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install Go tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate protobuf code
+        run: make proto
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Run unit tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start test environment
+        run: |
+          docker compose -f docker-compose.test.yml up -d --build
+          echo "Waiting for services to be ready..."
+          sleep 30
+
+      - name: Check service health
+        run: |
+          docker compose -f docker-compose.test.yml ps
+          docker compose -f docker-compose.test.yml logs controller | tail -50
+          docker compose -f docker-compose.test.yml logs agent-1 | tail -50
+
+      - name: Run E2E tests
+        run: |
+          docker compose -f docker-compose.test.yml run --rm e2e-tests go test -v ./test/e2e/... -timeout 10m
+
+      - name: Show logs
+        run: |
+          echo "=== Controller Logs ==="
+          docker compose -f docker-compose.test.yml logs controller
+          echo "=== Agent 1 Logs ==="
+          docker compose -f docker-compose.test.yml logs agent-1
+          echo "=== Agent 2 Logs ==="
+          docker compose -f docker-compose.test.yml logs agent-2
+          echo "=== Agent 3 Logs ==="
+          docker compose -f docker-compose.test.yml logs agent-3
+          echo "=== PostgreSQL Logs ==="
+          docker compose -f docker-compose.test.yml logs postgres
+          echo "=== Consul Logs ==="
+          docker compose -f docker-compose.test.yml logs consul
+          echo "=== Vault Logs ==="
+          docker compose -f docker-compose.test.yml logs vault
+
+      - name: Stop test environment
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Set GOTOOLCHAIN
+        run: echo "GOTOOLCHAIN=auto" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install Go tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+      - name: Generate protobuf code
+        run: make proto
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
