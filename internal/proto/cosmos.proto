@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package cosmos;
+
+option go_package = "github.com/metorial/fleet/cosmos/internal/proto;proto";
+
+service CosmosController {
+  rpc StreamAgentMessages(stream AgentMessage) returns (stream ControllerMessage);
+}
+
+message AgentMessage {
+  string hostname = 1;
+  int64 timestamp = 2;
+
+  oneof message {
+    AgentHeartbeat heartbeat = 3;
+    ComponentStatus component_status = 4;
+    HealthCheckResult health_result = 5;
+    DeploymentResult deployment_result = 6;
+  }
+}
+
+message ControllerMessage {
+  oneof message {
+    Acknowledgment ack = 1;
+    ComponentDeployment deployment = 2;
+    ComponentRemoval removal = 3;
+    HealthCheckConfig health_config = 4;
+  }
+}
+
+message AgentHeartbeat {
+  string agent_version = 1;
+  map<string, string> metadata = 2;
+  repeated ComponentStatus component_statuses = 3;
+}
+
+message ComponentStatus {
+  string name = 1;
+  string status = 2;
+  string message = 3;
+  int32 pid = 4;
+  int64 last_started_at = 5;
+  int32 restart_count = 6;
+}
+
+message HealthCheckResult {
+  string component_name = 1;
+  string check_type = 2;
+  string result = 3;
+  string message = 4;
+  int64 timestamp = 5;
+}
+
+message DeploymentResult {
+  string component_name = 1;
+  string operation = 2;
+  string result = 3;
+  string message = 4;
+  int64 timestamp = 5;
+}
+
+message Acknowledgment {
+  bool success = 1;
+  string message = 2;
+}
+
+message ComponentDeployment {
+  string component_name = 1;
+  string component_type = 2;
+  string hash = 3;
+  string content_url = 4;
+  string content_url_encoding = 5;
+  string content = 6;
+  HealthCheckConfig health_check = 7;
+  map<string, string> env = 8;
+  repeated string args = 9;
+  bool managed = 10;
+}
+
+message ComponentRemoval {
+  string component_name = 1;
+}
+
+message HealthCheckConfig {
+  string component_name = 1;
+  string type = 2;
+  string endpoint = 3;
+  int32 interval_seconds = 4;
+  int32 timeout_seconds = 5;
+  int32 retries = 6;
+}
