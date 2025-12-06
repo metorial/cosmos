@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# CI/CD
+.github
+
+# Build artifacts
+bin/
+dist/
+*.tar.gz
+*.zip
+
+# Test files
+test/
+*_test.go
+coverage.out
+coverage.html
+
+# Documentation
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Deployment
+deploy/
+
+# Data
+/data
+*.db
+*.log
