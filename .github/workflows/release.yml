@@ -76,11 +76,12 @@ jobs:
             output="dist/cosmos-agent-$GOOS-$GOARCH"
             [ "$GOOS" = "windows" ] && output+=".exe"
 
-            # For Linux, we can cross-compile with CGO
-            if [ "$GOOS" = "linux" ]; then
+            # Only enable CGO for native arch (linux/amd64 on GitHub Actions runners)
+            # Cross-compilation with CGO requires additional toolchains
+            if [ "$GOOS" = "linux" ] && [ "$GOARCH" = "amd64" ]; then
               CGO_ENABLED=1 GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o "$output" ./cmd/cosmos-agent
             else
-              # For Darwin/Windows, build without CGO (limited functionality)
+              # For other platforms, build without CGO (limited functionality)
               CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o "$output" ./cmd/cosmos-agent
             fi
 
@@ -141,6 +142,8 @@ jobs:
           echo "\`\`\`" >> release_notes.md
           echo "" >> release_notes.md
           echo "### Agent" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "> **Note:** Only the \`linux-amd64\` agent binary has full component management support (built with CGO). Other platform binaries have limited functionality. **For production deployments, we recommend using Docker images** which have full CGO support for both amd64 and arm64." >> release_notes.md
           echo "" >> release_notes.md
           echo "**Linux/macOS:**" >> release_notes.md
           echo "\`\`\`bash" >> release_notes.md
