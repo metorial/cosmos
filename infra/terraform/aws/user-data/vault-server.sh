@@ -7,6 +7,8 @@ REGION="${region}"
 SCRIPTS_URL="${github_scripts_base_url}"
 CONTROLLER_ADDR="${controller_addr}"
 COMMANDER_ADDR="${commander_addr}"
+KMS_KEY_ID="${kms_key_id}"
+INSTANCE_NAME="${instance_name}"
 
 # Setup logging
 LOG_FILE="/var/log/vault-server-setup.log"
@@ -27,8 +29,12 @@ curl -fsSL "$SCRIPTS_URL/consul-setup.sh" -o /tmp/consul-setup.sh
 source /tmp/consul-setup.sh
 curl -fsSL "$SCRIPTS_URL/vault-setup.sh" -o /tmp/vault-setup.sh
 source /tmp/vault-setup.sh
+curl -fsSL "$SCRIPTS_URL/vault-init.sh" -o /tmp/vault-init.sh
+source /tmp/vault-init.sh
 curl -fsSL "$SCRIPTS_URL/bastion-ssh.sh" -o /tmp/bastion-ssh.sh
 source /tmp/bastion-ssh.sh
+curl -fsSL "$SCRIPTS_URL/cloud-helpers.sh" -o /tmp/cloud-helpers.sh
+source /tmp/cloud-helpers.sh
 curl -fsSL "$SCRIPTS_URL/agent-setup.sh" -o /tmp/agent-setup.sh
 source /tmp/agent-setup.sh
 
@@ -56,9 +62,12 @@ start_consul
 
 # Install and configure Vault
 install_vault "$ARCH"
-configure_vault_server "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME"
+configure_vault_server "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME" "$KMS_KEY_ID"
 create_vault_systemd_service
 start_vault
+
+# Setup Vault auto-initialization
+setup_vault_auto_init "$CLUSTER_NAME" "$REGION" "$INSTANCE_NAME"
 
 # Install bastion SSH key
 fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"

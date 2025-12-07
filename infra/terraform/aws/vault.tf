@@ -14,11 +14,13 @@ resource "aws_instance" "vault_server" {
   ]
 
   user_data = templatefile("${path.module}/user-data/vault-server.sh", {
-    cluster_name           = local.cluster_name
-    region                 = var.aws_region
+    cluster_name            = local.cluster_name
+    region                  = var.aws_region
     github_scripts_base_url = var.github_scripts_base_url
-    controller_addr        = "consul-service.service.consul:50051"
-    commander_addr         = "command-service.service.consul:50052"
+    controller_addr         = "consul-service.service.consul:50051"
+    commander_addr          = "command-service.service.consul:50052"
+    kms_key_id              = aws_kms_key.vault.id
+    instance_name           = "${local.cluster_name}-vault-server-${count.index + 1}"
   })
 
   metadata_options {

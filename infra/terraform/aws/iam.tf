@@ -44,6 +44,44 @@ data "aws_iam_policy_document" "ssm" {
   }
 }
 
+# IAM Policy for SSM Agent Core Functionality
+data "aws_iam_policy_document" "ssm_agent" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "ssm:UpdateInstanceInformation",
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel",
+      "ec2messages:AcknowledgeMessage",
+      "ec2messages:DeleteMessage",
+      "ec2messages:FailMessage",
+      "ec2messages:GetEndpoint",
+      "ec2messages:GetMessages",
+      "ec2messages:SendReply",
+    ]
+
+    resources = ["*"]
+  }
+}
+
+# IAM Policy for Vault KMS Auto-Unseal
+data "aws_iam_policy_document" "vault_kms" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:DescribeKey",
+    ]
+
+    resources = ["*"]  # Will be restricted to specific KMS key in production
+  }
+}
+
 # Bastion IAM Role
 resource "aws_iam_role" "bastion" {
   name               = "${local.cluster_name}-bastion-role"
@@ -62,6 +100,12 @@ resource "aws_iam_role_policy" "bastion_ssm" {
   name   = "${local.cluster_name}-bastion-ssm-policy"
   role   = aws_iam_role.bastion.id
   policy = data.aws_iam_policy_document.ssm.json
+}
+
+resource "aws_iam_role_policy" "bastion_ssm_agent" {
+  name   = "${local.cluster_name}-bastion-ssm-agent-policy"
+  role   = aws_iam_role.bastion.id
+  policy = data.aws_iam_policy_document.ssm_agent.json
 }
 
 resource "aws_iam_instance_profile" "bastion" {
@@ -91,6 +135,12 @@ resource "aws_iam_role_policy" "consul_server_ssm" {
   policy = data.aws_iam_policy_document.ssm.json
 }
 
+resource "aws_iam_role_policy" "consul_server_ssm_agent" {
+  name   = "${local.cluster_name}-consul-server-ssm-agent-policy"
+  role   = aws_iam_role.consul_server.id
+  policy = data.aws_iam_policy_document.ssm_agent.json
+}
+
 resource "aws_iam_instance_profile" "consul_server" {
   name = "${local.cluster_name}-consul-server-profile"
   role = aws_iam_role.consul_server.name
@@ -116,6 +166,18 @@ resource "aws_iam_role_policy" "vault_server_ssm" {
   name   = "${local.cluster_name}-vault-server-ssm-policy"
   role   = aws_iam_role.vault_server.id
   policy = data.aws_iam_policy_document.ssm.json
+}
+
+resource "aws_iam_role_policy" "vault_server_ssm_agent" {
+  name   = "${local.cluster_name}-vault-server-ssm-agent-policy"
+  role   = aws_iam_role.vault_server.id
+  policy = data.aws_iam_policy_document.ssm_agent.json
+}
+
+resource "aws_iam_role_policy" "vault_server_kms" {
+  name   = "${local.cluster_name}-vault-server-kms-policy"
+  role   = aws_iam_role.vault_server.id
+  policy = data.aws_iam_policy_document.vault_kms.json
 }
 
 resource "aws_iam_instance_profile" "vault_server" {
@@ -145,6 +207,12 @@ resource "aws_iam_role_policy" "nomad_server_ssm" {
   policy = data.aws_iam_policy_document.ssm.json
 }
 
+resource "aws_iam_role_policy" "nomad_server_ssm_agent" {
+  name   = "${local.cluster_name}-nomad-server-ssm-agent-policy"
+  role   = aws_iam_role.nomad_server.id
+  policy = data.aws_iam_policy_document.ssm_agent.json
+}
+
 resource "aws_iam_instance_profile" "nomad_server" {
   name = "${local.cluster_name}-nomad-server-profile"
   role = aws_iam_role.nomad_server.name
@@ -170,6 +238,12 @@ resource "aws_iam_role_policy" "nomad_client_ssm" {
   name   = "${local.cluster_name}-nomad-client-ssm-policy"
   role   = aws_iam_role.nomad_client.id
   policy = data.aws_iam_policy_document.ssm.json
+}
+
+resource "aws_iam_role_policy" "nomad_client_ssm_agent" {
+  name   = "${local.cluster_name}-nomad-client-ssm-agent-policy"
+  role   = aws_iam_role.nomad_client.id
+  policy = data.aws_iam_policy_document.ssm_agent.json
 }
 
 resource "aws_iam_instance_profile" "nomad_client" {

@@ -36,6 +36,7 @@ configure_vault_server() {
     local region=$1
     local private_ip=$2
     local cluster_name=$3
+    local kms_key_id=${4:-""}
 
     log_info "Configuring Vault server..."
 
@@ -57,6 +58,19 @@ cluster_addr = "http://$private_ip:8201"
 
 log_level = "INFO"
 EOF
+
+    # Add KMS auto-unseal if KMS key ID is provided
+    if [ -n "$kms_key_id" ]; then
+        cat >> /etc/vault.d/vault.hcl <<EOF
+
+# AWS KMS Auto-Unseal
+seal "awskms" {
+  region     = "$region"
+  kms_key_id = "$kms_key_id"
+}
+EOF
+        log_success "KMS auto-unseal configured"
+    fi
 
     chown vault:vault /etc/vault.d/vault.hcl
     log_success "Vault server configured"
