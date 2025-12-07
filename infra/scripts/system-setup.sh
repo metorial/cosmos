@@ -24,7 +24,8 @@ install_base_dependencies() {
         gnupg \
         lsb-release \
         apt-transport-https \
-        software-properties-common
+        software-properties-common \
+        awscli
 
     log_success "Base dependencies installed"
 }
@@ -85,4 +86,25 @@ get_private_ip() {
 get_instance_id() {
     # Get instance ID from metadata (AWS)
     curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown"
+}
+
+install_ssm_agent() {
+    log_section "Installing AWS SSM Agent"
+
+    # SSM agent is typically pre-installed on Ubuntu AMIs, but let's ensure it's running
+    if systemctl is-active --quiet snap.amazon-ssm-agent.amazon-ssm-agent; then
+        log_info "SSM agent already running"
+    else
+        # Install if not present
+        if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
+            log_info "Installing SSM agent via snap..."
+            snap install amazon-ssm-agent --classic
+        fi
+
+        log_info "Starting SSM agent..."
+        systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+        systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+    fi
+
+    log_success "SSM agent is running"
 }

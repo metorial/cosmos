@@ -47,3 +47,8 @@ output "ssh_connection_command" {
   description = "Command to SSH into bastion"
   value       = "ssh -i ~/.ssh/id_rsa ubuntu@${aws_eip.bastion.public_ip}"
 }
+
+output "all_services_tunnel" {
+  description = "SSH tunnel command to access all UIs at once"
+  value       = "ssh -L 8500:${aws_instance.consul_server[0].private_ip}:8500 -L 8200:${aws_instance.vault_server[0].private_ip}:8200 -L 4646:${aws_instance.nomad_server[0].private_ip}:4646 ubuntu@${aws_eip.bastion.public_ip}"
+}

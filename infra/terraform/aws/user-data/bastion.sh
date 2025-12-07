@@ -34,6 +34,7 @@ log_section "BASTION HOST SETUP"
 setup_system_packages
 install_base_dependencies
 install_docker
+install_ssm_agent
 
 # Install HashiCorp CLI tools
 ARCH=$(detect_architecture)

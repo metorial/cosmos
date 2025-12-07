@@ -43,6 +43,7 @@ log_section "NOMAD CLIENT SETUP"
 setup_system_packages
 install_base_dependencies
 install_docker
+install_ssm_agent
 
 # Get instance info
 ARCH=$(detect_architecture)
