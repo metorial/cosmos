@@ -78,6 +78,49 @@ install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"
 install_command_core_agent "$COMMANDER_ADDR" "$CLUSTER_NAME"
 start_agents
 
+# Deploy cosmos jobs (management nodes only)
+if [ "$NODE_POOL" = "management" ]; then
+  log_section "Setting up Cosmos Jobs Auto-Deployment"
+
+  # Download cosmos jobs deployment script
+  curl -fsSL "$SCRIPTS_URL/cosmos-jobs-deploy.sh" -o /usr/local/bin/cosmos-jobs-deploy.sh
+  chmod +x /usr/local/bin/cosmos-jobs-deploy.sh
+
+  # Replace placeholders
+  sed -i "s/CLUSTER_NAME_PLACEHOLDER/$CLUSTER_NAME/g" /usr/local/bin/cosmos-jobs-deploy.sh
+  sed -i "s/REGION_PLACEHOLDER/$REGION/g" /usr/local/bin/cosmos-jobs-deploy.sh
+
+  # Create systemd service for cosmos jobs deployment
+  cat > /etc/systemd/system/cosmos-jobs-deploy.service <<EOF
+[Unit]
+Description=Cosmos Nomad Jobs Auto-Deployment
+After=nomad.service consul.service
+Requires=nomad.service consul.service
+ConditionPathExists=/usr/local/bin/cosmos-jobs-deploy.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/cosmos-jobs-deploy.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+Environment="NOMAD_ADDR=http://127.0.0.1:4646"
+Environment="CLUSTER_NAME=$CLUSTER_NAME"
+Environment="REGION=$REGION"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Enable and start the service in background
+  systemctl daemon-reload
+  systemctl enable cosmos-jobs-deploy.service
+  systemctl start cosmos-jobs-deploy.service &
+
+  log_success "Cosmos jobs auto-deployment configured"
+fi
+
 log_section "NOMAD CLIENT SETUP COMPLETE"
 log_info "Nomad client is running and ready"
 log_info "Setup completed at: $(date)"

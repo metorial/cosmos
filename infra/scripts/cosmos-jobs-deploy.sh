@@ -1,0 +1,279 @@
+#!/bin/bash
+# Cosmos Nomad Jobs Auto-Deployment
+# This script automatically deploys cosmos-controller and postgres-cosmos
+# after Vault initialization completes and tokens are available
+
+# Get environment from systemd or use defaults
+CLUSTER_NAME="${CLUSTER_NAME:-CLUSTER_NAME_PLACEHOLDER}"
+REGION="${REGION:-REGION_PLACEHOLDER}"
+
+# Logging
+exec >> /var/log/cosmos-jobs-deploy.log 2>&1
+
+echo "==================================="
+echo "Cosmos Jobs Deployment: $(date)"
+echo "Cluster: $CLUSTER_NAME"
+echo "Region: $REGION"
+echo "==================================="
+
+# Wait for Nomad to be ready
+echo "Waiting for Nomad cluster to be ready..."
+# Use Consul DNS to find Nomad servers
+export NOMAD_ADDR="http://nomad.service.consul:4646"
+MAX_WAIT=120
+WAIT_COUNT=0
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+  if nomad status >/dev/null 2>&1; then
+    echo "Nomad cluster is ready"
+    break
+  fi
+  echo "Waiting for Nomad cluster... ($WAIT_COUNT/$MAX_WAIT)"
+  sleep 5
+  WAIT_COUNT=$((WAIT_COUNT + 5))
+done
+
+if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+  echo "ERROR: Nomad cluster did not become ready in time"
+  exit 1
+fi
+
+# Wait for Vault tokens to be available in Consul KV
+echo "Waiting for Vault tokens in Consul KV..."
+MAX_WAIT=120
+WAIT_COUNT=0
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+  CONTROLLER_TOKEN=$(consul kv get cosmos/controller-token 2>/dev/null || echo "")
+  AGENT_TOKEN=$(consul kv get cosmos/agent-token 2>/dev/null || echo "")
+
+  if [ -n "$CONTROLLER_TOKEN" ] && [ -n "$AGENT_TOKEN" ]; then
+    echo "Vault tokens found in Consul KV"
+    break
+  fi
+  echo "Waiting for Vault tokens... ($WAIT_COUNT/$MAX_WAIT)"
+  sleep 5
+  WAIT_COUNT=$((WAIT_COUNT + 5))
+done
+
+if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+  echo "ERROR: Vault tokens did not become available in time"
+  exit 1
+fi
+
+# Check if jobs are already running
+POSTGRES_RUNNING=$(nomad job status postgres-cosmos 2>/dev/null && echo "yes" || echo "no")
+CONTROLLER_RUNNING=$(nomad job status cosmos-controller 2>/dev/null && echo "yes" || echo "no")
+
+if [ "$POSTGRES_RUNNING" = "yes" ] && [ "$CONTROLLER_RUNNING" = "yes" ]; then
+  echo "Cosmos jobs are already running"
+  exit 0
+fi
+
+# Create Nomad jobs directory
+mkdir -p /opt/nomad/jobs
+
+# Deploy postgres-cosmos if not running
+if [ "$POSTGRES_RUNNING" = "no" ]; then
+  echo "Deploying postgres-cosmos..."
+
+  cat > /opt/nomad/jobs/postgres-cosmos.nomad <<'EOF'
+job "postgres-cosmos" {
+  datacenters = ["*"]
+  type        = "service"
+  node_pool   = "management"
+
+  group "postgres" {
+    count = 1
+
+    constraint {
+      attribute = "${node.pool}"
+      value     = "management"
+    }
+
+    network {
+      port "postgres" {
+        static = 5432
+      }
+    }
+
+    service {
+      name = "postgres-cosmos"
+      port = "postgres"
+
+      tags = [
+        "database",
+        "postgres",
+        "cosmos",
+      ]
+
+      check {
+        name     = "alive"
+        type     = "tcp"
+        port     = "postgres"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "postgres" {
+      driver = "docker"
+
+      config {
+        image = "postgres:15-alpine"
+
+        ports = ["postgres"]
+
+        volumes = [
+          "/opt/postgres-cosmos:/var/lib/postgresql/data"
+        ]
+      }
+
+      env {
+        POSTGRES_DB       = "cosmos"
+        POSTGRES_USER     = "cosmos"
+        POSTGRES_PASSWORD = "cosmos_production"
+        PGDATA            = "/var/lib/postgresql/data/pgdata"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 512
+      }
+    }
+  }
+}
+EOF
+
+  nomad job run /opt/nomad/jobs/postgres-cosmos.nomad
+  if [ $? -eq 0 ]; then
+    echo "postgres-cosmos deployed successfully"
+  else
+    echo "ERROR: Failed to deploy postgres-cosmos"
+    exit 1
+  fi
+
+  # Wait for postgres to be healthy
+  echo "Waiting for postgres-cosmos to be healthy..."
+  sleep 10
+fi
+
+# Deploy cosmos-controller if not running
+if [ "$CONTROLLER_RUNNING" = "no" ]; then
+  echo "Deploying cosmos-controller..."
+
+  cat > /opt/nomad/jobs/cosmos-controller.nomad <<'EOF'
+job "cosmos-controller" {
+  datacenters = ["*"]
+  type        = "service"
+  node_pool   = "management"
+
+  group "controller" {
+    count = 1
+
+    constraint {
+      attribute = "${node.pool}"
+      value     = "management"
+    }
+
+    network {
+      port "grpc" {
+        static = 9091
+      }
+
+      port "http" {
+        static = 8090
+      }
+    }
+
+    service {
+      name = "cosmos-controller"
+      port = "grpc"
+
+      tags = [
+        "cosmos",
+        "controller",
+      ]
+
+      check {
+        name     = "alive"
+        type     = "tcp"
+        port     = "grpc"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    service {
+      name = "cosmos-controller-http"
+      port = "http"
+
+      check {
+        name     = "http-alive"
+        type     = "http"
+        path     = "/api/v1/health"
+        port     = "http"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "controller" {
+      driver = "docker"
+
+      config {
+        image = "ghcr.io/metorial/cosmos-controller:latest"
+
+        ports = ["grpc", "http"]
+
+        dns_servers = ["127.0.0.1"]
+        dns_search_domains = ["service.consul"]
+
+        volumes = [
+          "/etc/cosmos/controller:/etc/cosmos/controller"
+        ]
+      }
+
+      template {
+        data = <<EOH
+{{- range service "postgres-cosmos" }}
+COSMOS_DB_URL="postgres://cosmos:cosmos_production@{{ .Address }}:{{ .Port }}/cosmos?sslmode=disable"
+{{- end }}
+{{- range service "vault" "passing,warning" }}
+{{ if .Tags | contains "active" }}
+VAULT_ADDR="http://{{ .Address }}:{{ .Port }}"
+{{ end }}
+{{- end }}
+VAULT_TOKEN="{{ key "cosmos/controller-token" }}"
+EOH
+        destination = "local/services.env"
+        env = true
+      }
+
+      env {
+        GRPC_PORT = "${NOMAD_PORT_grpc}"
+        HTTP_PORT = "${NOMAD_PORT_http}"
+        CONSUL_HTTP_ADDR = "127.0.0.1:8500"
+        COSMOS_CERT_HOSTNAME = "cosmos-controller.service.consul"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 512
+      }
+    }
+  }
+}
+EOF
+
+  nomad job run /opt/nomad/jobs/cosmos-controller.nomad
+  if [ $? -eq 0 ]; then
+    echo "cosmos-controller deployed successfully"
+  else
+    echo "ERROR: Failed to deploy cosmos-controller"
+    exit 1
+  fi
+fi
+
+echo ""
+echo "Cosmos jobs deployment complete!"
+echo "- postgres-cosmos: $(nomad job status postgres-cosmos 2>/dev/null | grep Status | awk '{print $3}')"
+echo "- cosmos-controller: $(nomad job status cosmos-controller 2>/dev/null | grep Status | awk '{print $3}')"
