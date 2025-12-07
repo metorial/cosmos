@@ -133,12 +133,13 @@ start_agents() {
     systemctl enable cosmos-agent
     systemctl start cosmos-agent
 
-    # Start command-core-agent
+    # Start command-core-agent (may not be available yet - will retry in background)
     log_info "Starting command-core-agent..."
     systemctl enable command-core-agent
-    systemctl start command-core-agent
+    # Allow failure - image may not be accessible yet, systemd will keep retrying
+    systemctl start command-core-agent || log_warning "command-core-agent image not available - systemd will retry"
 
-    log_success "Agents started successfully"
+    log_success "cosmos-agent started successfully"
 }
 
 check_agent_status() {
