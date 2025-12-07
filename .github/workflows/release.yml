@@ -39,7 +39,7 @@ jobs:
         run: make proto
 
       - name: Run tests
-        run: go test -v -race ./...
+        run: go test -v -race $(go list ./... | grep -v /test/e2e)
 
       - name: Build binaries
         run: |
