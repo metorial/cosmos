@@ -10,28 +10,31 @@ install_cosmos_agent() {
     # Get the node ID
     local node_id=$(cat /etc/machine-id)
 
-    # Retrieve Vault token from SSM
-    log_info "Retrieving Cosmos agent Vault token from SSM..."
-    local vault_token=$(cloud_get_secret "/$cluster_name/cosmos/agent-token" "$REGION" || echo "")
-
-    if [ -z "$vault_token" ]; then
-        log_error "Failed to retrieve Vault token from SSM. Using placeholder."
-        vault_token="VAULT_TOKEN_PLACEHOLDER"
-    else
-        log_success "Vault token retrieved successfully"
-    fi
-
     # Create certificate directory
     mkdir -p /etc/cosmos/agent
     chmod 755 /etc/cosmos
     chmod 700 /etc/cosmos/agent
+
+    # Create script to retrieve Vault token dynamically at service startup
+    cat > /usr/local/bin/cosmos-agent-token.sh <<'TOKENSCRIPT'
+#!/bin/bash
+# Retrieve Vault token from Consul KV at service startup
+TOKEN=$(consul kv get cosmos/agent-token 2>/dev/null || echo "")
+if [ -z "$TOKEN" ]; then
+  echo "ERROR: Failed to retrieve Vault token from Consul KV" >&2
+  exit 1
+fi
+echo "$TOKEN"
+TOKENSCRIPT
+
+    chmod +x /usr/local/bin/cosmos-agent-token.sh
 
     # Create systemd service for cosmos-agent
     cat > /etc/systemd/system/cosmos-agent.service <<EOF
 [Unit]
 Description=Cosmos Agent
 Documentation=https://github.com/metorial/cosmos
-After=docker.service
+After=docker.service consul.service
 Requires=docker.service
 
 [Service]
@@ -44,7 +47,7 @@ ExecStartPre=-/usr/bin/docker stop cosmos-agent
 ExecStartPre=-/usr/bin/docker rm cosmos-agent
 ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/cosmos-agent:latest
 
-ExecStart=/usr/bin/docker run --rm --name cosmos-agent \\
+ExecStart=/bin/bash -c '/usr/bin/docker run --rm --name cosmos-agent \\
   --network host \\
   -v /var/run/docker.sock:/var/run/docker.sock \\
   -v /opt/cosmos-agent:/data \\
@@ -53,8 +56,8 @@ ExecStart=/usr/bin/docker run --rm --name cosmos-agent \\
   -e CLUSTER_NAME=$cluster_name \\
   -e NODE_ID=$node_id \\
   -e VAULT_ADDR=http://active.vault.service.consul:8200 \\
-  -e VAULT_TOKEN=$vault_token \\
-  ghcr.io/metorial/cosmos-agent:latest
+  -e VAULT_TOKEN=\$(/usr/local/bin/cosmos-agent-token.sh) \\
+  ghcr.io/metorial/cosmos-agent:latest'
 
 ExecStop=/usr/bin/docker stop cosmos-agent
 
@@ -66,7 +69,7 @@ SyslogIdentifier=cosmos-agent
 WantedBy=multi-user.target
 EOF
 
-    log_success "cosmos-agent service created"
+    log_success "cosmos-agent service created with dynamic token retrieval"
 }
 
 install_command_core_agent() {
