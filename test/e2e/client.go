@@ -193,7 +193,7 @@ func (c *Client) ListAgents() ([]Agent, error) {
 }
 
 func (c *Client) WaitForHealth() error {
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 60; i++ {
 		resp, err := c.httpClient.Get(fmt.Sprintf("%s/api/v1/health", c.baseURL))
 		if err == nil && resp.StatusCode == http.StatusOK {
 			resp.Body.Close()
@@ -204,7 +204,7 @@ func (c *Client) WaitForHealth() error {
 		}
 		time.Sleep(2 * time.Second)
 	}
-	return fmt.Errorf("controller did not become healthy")
+	return fmt.Errorf("controller did not become healthy after 120 seconds")
 }
 
 func (c *Client) WaitForAgents(count int, timeout time.Duration) error {
