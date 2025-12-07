@@ -65,7 +65,7 @@ job "cosmos-controller" {
         dns_search_domains = ["service.consul"]
 
         volumes = [
-          "/etc/cosmos:/etc/cosmos"
+          "/etc/cosmos/controller:/etc/cosmos/controller"
         ]
       }
 

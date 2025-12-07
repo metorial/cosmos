@@ -43,6 +43,10 @@ job "postgres-cosmos" {
         image = "postgres:15-alpine"
 
         ports = ["postgres"]
+
+        volumes = [
+          "/opt/postgres-cosmos:/var/lib/postgresql/data"
+        ]
       }
 
       env {
