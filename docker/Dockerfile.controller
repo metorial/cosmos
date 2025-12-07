@@ -1,0 +1,33 @@
+FROM golang:1.25-bookworm AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    make \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV GOTOOLCHAIN=auto
+
+COPY go.mod go.sum ./
+RUN go mod download
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+COPY . .
+
+RUN make proto
+RUN CGO_ENABLED=0 GOOS=linux go build -o cosmos-controller ./cmd/cosmos-controller
+
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+
+COPY --from=builder /build/cosmos-controller .
+
+EXPOSE 8090 9091
+
+CMD ["./cosmos-controller"]
