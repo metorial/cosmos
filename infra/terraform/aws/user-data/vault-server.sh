@@ -60,6 +60,9 @@ configure_consul_client "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME"
 create_consul_systemd_service
 start_consul
 
+# Configure DNS for Consul
+configure_consul_dns
+
 # Install and configure Vault
 install_vault "$ARCH"
 configure_vault_server "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME" "$KMS_KEY_ID"

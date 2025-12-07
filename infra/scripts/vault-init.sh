@@ -28,6 +28,15 @@ echo "Region: $REGION"
 echo "Instance: $INSTANCE_NAME"
 echo "==================================="
 
+# Source cloud helper functions for SSM storage
+if [ -f /tmp/cloud-helpers.sh ]; then
+    source /tmp/cloud-helpers.sh
+    echo "Loaded cloud helper functions"
+else
+    echo "WARNING: cloud-helpers.sh not found at /tmp/cloud-helpers.sh"
+    echo "Recovery keys will not be saved to SSM Parameter Store"
+fi
+
 # Export Vault address
 export VAULT_ADDR="http://127.0.0.1:8200"
 
@@ -140,6 +149,56 @@ if vault status 2>&1 | grep -q "Initialized.*false"; then
           echo ""
           echo "To retrieve:"
           echo "  aws ssm get-parameter --region $REGION --name '/$CLUSTER_NAME/vault/init-keys' --with-decryption --query 'Parameter.Value' --output text | jq ."
+
+          # Configure Vault PKI for Cosmos
+          echo ""
+          echo "Configuring Vault PKI for Cosmos certificates..."
+          export VAULT_TOKEN="$ROOT_TOKEN"
+
+          # Enable PKI secrets engine
+          vault secrets enable -path=cosmos-pki pki 2>&1 | tee -a /var/log/vault-init.log || echo "PKI may already be enabled"
+
+          # Configure max lease TTL
+          vault secrets tune -max-lease-ttl=87600h cosmos-pki 2>&1 | tee -a /var/log/vault-init.log
+
+          # Generate root CA
+          vault write -field=certificate cosmos-pki/root/generate/internal \
+              common_name="Cosmos Internal CA" \
+              issuer_name="cosmos-root" \
+              ttl=87600h > /opt/vault/cosmos-ca.crt 2>&1
+
+          echo "Root CA certificate saved to /opt/vault/cosmos-ca.crt"
+
+          # Configure CA and CRL URLs
+          vault write cosmos-pki/config/urls \
+              issuing_certificates="http://active.vault.service.consul:8200/v1/cosmos-pki/ca" \
+              crl_distribution_points="http://active.vault.service.consul:8200/v1/cosmos-pki/crl" 2>&1 | tee -a /var/log/vault-init.log
+
+          # Create role for controller certificates
+          vault write cosmos-pki/roles/controller \
+              allowed_domains="controller,cosmos-controller" \
+              allow_subdomains=true \
+              allow_bare_domains=true \
+              allow_localhost=true \
+              allow_ip_sans=true \
+              max_ttl="8760h" \
+              ttl="8760h" \
+              key_bits=2048 \
+              key_type=rsa 2>&1 | tee -a /var/log/vault-init.log
+
+          # Create role for agent certificates
+          vault write cosmos-pki/roles/agent \
+              allowed_domains="agent,cosmos-agent" \
+              allow_subdomains=true \
+              allow_bare_domains=true \
+              allow_localhost=true \
+              allow_ip_sans=true \
+              max_ttl="720h" \
+              ttl="72h" \
+              key_bits=2048 \
+              key_type=rsa 2>&1 | tee -a /var/log/vault-init.log
+
+          echo "Vault PKI configured successfully for Cosmos"
         else
           echo "ERROR: Failed to store keys in SSM Parameter Store"
           cat /var/log/vault-init-storage.log

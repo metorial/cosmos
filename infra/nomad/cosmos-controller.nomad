@@ -1,6 +1,7 @@
 job "cosmos-controller" {
   datacenters = ["*"]
   type        = "service"
+  node_pool   = "management"
 
   group "controller" {
     count = 1
@@ -42,11 +43,6 @@ job "cosmos-controller" {
       name = "cosmos-controller-http"
       port = "http"
 
-      tags = [
-        "traefik.enable=true",
-        "traefik.http.routers.cosmos.rule=Host(`cosmos.example.com`)",
-      ]
-
       check {
         name     = "http-alive"
         type     = "http"
@@ -64,12 +60,31 @@ job "cosmos-controller" {
         image = "ghcr.io/metorial/cosmos-controller:latest"
 
         ports = ["grpc", "http"]
+
+        dns_servers = ["127.0.0.1"]
+        dns_search_domains = ["service.consul"]
+      }
+
+      template {
+        data = <<EOH
+{{- range service "postgres-cosmos" }}
+COSMOS_DB_URL="postgres://cosmos:cosmos_production@{{ .Address }}:{{ .Port }}/cosmos?sslmode=disable"
+{{- end }}
+{{- range service "vault" "passing,warning" }}
+{{ if .Tags | contains "active" }}
+VAULT_ADDR="http://{{ .Address }}:{{ .Port }}"
+{{ end }}
+{{- end }}
+EOH
+        destination = "local/services.env"
+        env = true
       }
 
       env {
         GRPC_PORT = "${NOMAD_PORT_grpc}"
         HTTP_PORT = "${NOMAD_PORT_http}"
         CONSUL_HTTP_ADDR = "127.0.0.1:8500"
+        VAULT_TOKEN = "root"
       }
 
       resources {

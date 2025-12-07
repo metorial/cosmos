@@ -177,27 +177,27 @@ resource "aws_security_group" "nomad_server" {
     cidr_blocks = [var.vpc_cidr]
   }
 
-  # Nomad RPC
+  # Nomad RPC (inter-server)
   ingress {
-    description = "Nomad RPC"
+    description = "Nomad RPC (inter-server)"
     from_port   = 4647
     to_port     = 4647
     protocol    = "tcp"
     self        = true
   }
 
-  # Nomad Serf (TCP)
+  # Nomad Serf TCP (inter-server)
   ingress {
-    description = "Nomad Serf TCP"
+    description = "Nomad Serf TCP (inter-server)"
     from_port   = 4648
     to_port     = 4648
     protocol    = "tcp"
     self        = true
   }
 
-  # Nomad Serf (UDP)
+  # Nomad Serf UDP (inter-server)
   ingress {
-    description = "Nomad Serf UDP"
+    description = "Nomad Serf UDP (inter-server)"
     from_port   = 4648
     to_port     = 4648
     protocol    = "udp"
@@ -288,4 +288,39 @@ resource "aws_security_group" "nomad_client" {
   tags = merge(local.common_tags, {
     Name = "${local.cluster_name}-nomad-client-sg"
   })
+}
+
+# Separate security group rules to avoid circular dependencies
+
+# Allow Nomad clients to connect to Nomad server RPC (port 4647)
+resource "aws_security_group_rule" "nomad_server_rpc_from_clients" {
+  type                     = "ingress"
+  description              = "Nomad RPC from clients"
+  from_port                = 4647
+  to_port                  = 4647
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.nomad_client.id
+  security_group_id        = aws_security_group.nomad_server.id
+}
+
+# Allow Nomad clients to connect to Nomad server Serf TCP (port 4648)
+resource "aws_security_group_rule" "nomad_server_serf_tcp_from_clients" {
+  type                     = "ingress"
+  description              = "Nomad Serf TCP from clients"
+  from_port                = 4648
+  to_port                  = 4648
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.nomad_client.id
+  security_group_id        = aws_security_group.nomad_server.id
+}
+
+# Allow Nomad clients to connect to Nomad server Serf UDP (port 4648)
+resource "aws_security_group_rule" "nomad_server_serf_udp_from_clients" {
+  type                     = "ingress"
+  description              = "Nomad Serf UDP from clients"
+  from_port                = 4648
+  to_port                  = 4648
+  protocol                 = "udp"
+  source_security_group_id = aws_security_group.nomad_client.id
+  security_group_id        = aws_security_group.nomad_server.id
 }

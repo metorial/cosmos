@@ -7,6 +7,9 @@ install_cosmos_agent() {
 
     log_section "Installing cosmos-agent"
 
+    # Get the node ID
+    local node_id=$(cat /etc/machine-id)
+
     # Create systemd service for cosmos-agent
     cat > /etc/systemd/system/cosmos-agent.service <<EOF
 [Unit]
@@ -31,7 +34,9 @@ ExecStart=/usr/bin/docker run --rm --name cosmos-agent \\
   -v /opt/cosmos-agent:/data \\
   -e CONTROLLER_ADDR=$controller_addr \\
   -e CLUSTER_NAME=$cluster_name \\
-  -e NODE_ID=\$(cat /etc/machine-id) \\
+  -e NODE_ID=$node_id \\
+  -e VAULT_ADDR=http://active.vault.service.consul:8200 \\
+  -e VAULT_TOKEN=root \\
   ghcr.io/metorial/cosmos-agent:latest
 
 ExecStop=/usr/bin/docker stop cosmos-agent
@@ -52,6 +57,9 @@ install_command_core_agent() {
     local cluster_name=$2
 
     log_section "Installing command-core-agent"
+
+    # Get the node ID
+    local node_id=$(cat /etc/machine-id)
 
     # Create systemd service for command-core-agent
     cat > /etc/systemd/system/command-core-agent.service <<EOF
@@ -76,7 +84,7 @@ ExecStart=/usr/bin/docker run --rm --name command-core-agent \\
   -v /opt/command-core-agent:/data \\
   -e COMMANDER_ADDR=$commander_addr \\
   -e CLUSTER_NAME=$cluster_name \\
-  -e NODE_ID=\$(cat /etc/machine-id) \\
+  -e NODE_ID=$node_id \\
   ghcr.io/metorial/command-core-agent:latest
 
 ExecStop=/usr/bin/docker stop command-core-agent

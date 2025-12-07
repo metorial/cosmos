@@ -19,8 +19,8 @@ resource "aws_instance" "nomad_client" {
     node_pool              = "default"
     node_class             = "general"
     github_scripts_base_url = var.github_scripts_base_url
-    controller_addr        = "consul-service.service.consul:50051"
-    commander_addr         = "command-service.service.consul:50052"
+    controller_addr        = "cosmos-controller.service.consul:50051"
+    commander_addr         = "command-core-commander.service.consul:50052"
   })
 
   metadata_options {
@@ -60,8 +60,8 @@ resource "aws_instance" "nomad_management_client" {
     node_pool              = "management"
     node_class             = "management"
     github_scripts_base_url = var.github_scripts_base_url
-    controller_addr        = "consul-service.service.consul:50051"
-    commander_addr         = "command-service.service.consul:50052"
+    controller_addr        = "cosmos-controller.service.consul:50051"
+    commander_addr         = "command-core-commander.service.consul:50052"
   })
 
   metadata_options {

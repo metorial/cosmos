@@ -53,6 +53,9 @@ configure_consul_server "$REGION" "$SERVER_COUNT" "$PRIVATE_IP" "$CLUSTER_NAME"
 create_consul_systemd_service
 start_consul
 
+# Configure DNS for Consul
+configure_consul_dns
+
 # Install bastion SSH key
 fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
 

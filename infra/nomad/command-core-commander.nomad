@@ -1,6 +1,7 @@
 job "command-core-commander" {
   datacenters = ["*"]
   type        = "service"
+  node_pool   = "management"
 
   group "commander" {
     count = 1
@@ -41,11 +42,6 @@ job "command-core-commander" {
     service {
       name = "command-core-commander-http"
       port = "http"
-
-      tags = [
-        "traefik.enable=true",
-        "traefik.http.routers.command.rule=Host(`command.example.com`)",
-      ]
 
       check {
         name     = "http-alive"

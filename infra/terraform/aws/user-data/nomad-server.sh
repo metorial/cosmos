@@ -55,6 +55,9 @@ configure_consul_client "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME"
 create_consul_systemd_service
 start_consul
 
+# Configure DNS for Consul
+configure_consul_dns
+
 # Install and configure Nomad
 install_nomad "$ARCH"
 configure_nomad_server "$REGION" "$SERVER_COUNT" "$PRIVATE_IP"

@@ -108,3 +108,23 @@ install_ssm_agent() {
 
     log_success "SSM agent is running"
 }
+
+configure_consul_dns() {
+    log_section "Configuring Consul DNS resolution"
+
+    # Create systemd-resolved drop-in directory
+    mkdir -p /etc/systemd/resolved.conf.d
+
+    # Configure systemd-resolved to use Consul DNS for .consul domain
+    cat > /etc/systemd/resolved.conf.d/consul.conf <<EOF
+[Resolve]
+DNS=127.0.0.1:8600
+Domains=~consul
+EOF
+
+    # Restart systemd-resolved to apply changes
+    systemctl restart systemd-resolved
+
+    log_success "Consul DNS resolution configured"
+    log_info "Consul .consul domains will resolve via local Consul agent on port 8600"
+}
