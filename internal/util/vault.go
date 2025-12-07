@@ -51,9 +51,14 @@ func NewVaultCertManager(config *VaultCertConfig) (*VaultCertManager, error) {
 
 	client.SetToken(config.VaultToken)
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get hostname: %w", err)
+	// Allow overriding hostname via environment variable (for Consul DNS names)
+	hostname := os.Getenv("COSMOS_CERT_HOSTNAME")
+	if hostname == "" {
+		var err error
+		hostname, err = os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get hostname: %w", err)
+		}
 	}
 
 	return &VaultCertManager{

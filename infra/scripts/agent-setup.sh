@@ -10,6 +10,22 @@ install_cosmos_agent() {
     # Get the node ID
     local node_id=$(cat /etc/machine-id)
 
+    # Retrieve Vault token from SSM
+    log_info "Retrieving Cosmos agent Vault token from SSM..."
+    local vault_token=$(cloud_get_secret "/$cluster_name/cosmos/agent-token" "$REGION" || echo "")
+
+    if [ -z "$vault_token" ]; then
+        log_error "Failed to retrieve Vault token from SSM. Using placeholder."
+        vault_token="VAULT_TOKEN_PLACEHOLDER"
+    else
+        log_success "Vault token retrieved successfully"
+    fi
+
+    # Create certificate directory
+    mkdir -p /etc/cosmos/agent
+    chmod 755 /etc/cosmos
+    chmod 700 /etc/cosmos/agent
+
     # Create systemd service for cosmos-agent
     cat > /etc/systemd/system/cosmos-agent.service <<EOF
 [Unit]
@@ -32,11 +48,12 @@ ExecStart=/usr/bin/docker run --rm --name cosmos-agent \\
   --network host \\
   -v /var/run/docker.sock:/var/run/docker.sock \\
   -v /opt/cosmos-agent:/data \\
-  -e CONTROLLER_ADDR=$controller_addr \\
+  -v /etc/cosmos:/etc/cosmos \\
+  -e COSMOS_CONTROLLER_URL=cosmos-controller.service.consul:9091 \\
   -e CLUSTER_NAME=$cluster_name \\
   -e NODE_ID=$node_id \\
   -e VAULT_ADDR=http://active.vault.service.consul:8200 \\
-  -e VAULT_TOKEN=root \\
+  -e VAULT_TOKEN=$vault_token \\
   ghcr.io/metorial/cosmos-agent:latest
 
 ExecStop=/usr/bin/docker stop cosmos-agent

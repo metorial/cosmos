@@ -32,3 +32,15 @@ cloud_update_secret() {
         --value "$value" \
         --overwrite
 }
+
+cloud_get_secret() {
+    local key="$1"
+    local region="$2"
+
+    aws ssm get-parameter \
+        --region "$region" \
+        --name "$key" \
+        --with-decryption \
+        --query 'Parameter.Value' \
+        --output text 2>/dev/null
+}

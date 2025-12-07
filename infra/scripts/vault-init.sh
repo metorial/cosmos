@@ -176,10 +176,11 @@ if vault status 2>&1 | grep -q "Initialized.*false"; then
 
           # Create role for controller certificates
           vault write cosmos-pki/roles/controller \
-              allowed_domains="controller,cosmos-controller" \
+              allowed_domains="controller,cosmos-controller,service.consul,consul" \
               allow_subdomains=true \
               allow_bare_domains=true \
               allow_localhost=true \
+              allow_any_name=true \
               allow_ip_sans=true \
               max_ttl="8760h" \
               ttl="8760h" \
@@ -188,10 +189,11 @@ if vault status 2>&1 | grep -q "Initialized.*false"; then
 
           # Create role for agent certificates
           vault write cosmos-pki/roles/agent \
-              allowed_domains="agent,cosmos-agent" \
+              allowed_domains="agent,cosmos-agent,service.consul,consul" \
               allow_subdomains=true \
               allow_bare_domains=true \
               allow_localhost=true \
+              allow_any_name=true \
               allow_ip_sans=true \
               max_ttl="720h" \
               ttl="72h" \
@@ -199,6 +201,97 @@ if vault status 2>&1 | grep -q "Initialized.*false"; then
               key_type=rsa 2>&1 | tee -a /var/log/vault-init.log
 
           echo "Vault PKI configured successfully for Cosmos"
+
+          # Create Vault policies for Cosmos
+          echo ""
+          echo "Creating Vault policies for Cosmos..."
+
+          # Controller policy
+          vault policy write cosmos-controller - <<POLICY_EOF
+path "cosmos-pki/issue/controller" {
+  capabilities = ["create", "update"]
+}
+path "cosmos-pki/certs" {
+  capabilities = ["list"]
+}
+path "cosmos-pki/revoke" {
+  capabilities = ["create", "update"]
+}
+POLICY_EOF
+
+          # Agent policy
+          vault policy write cosmos-agent - <<POLICY_EOF
+path "cosmos-pki/issue/agent" {
+  capabilities = ["create", "update"]
+}
+path "cosmos-pki/certs" {
+  capabilities = ["list"]
+}
+path "cosmos-pki/revoke" {
+  capabilities = ["create", "update"]
+}
+POLICY_EOF
+
+          echo "Vault policies created successfully"
+
+          # Create tokens for Cosmos components
+          echo ""
+          echo "Creating Vault tokens for Cosmos components..."
+
+          # Controller token
+          CONTROLLER_TOKEN=$(vault token create \
+              -policy=cosmos-controller \
+              -ttl=0 \
+              -display-name="cosmos-controller" \
+              -format=json | jq -r '.auth.client_token')
+
+          # Agent token
+          AGENT_TOKEN=$(vault token create \
+              -policy=cosmos-agent \
+              -ttl=0 \
+              -display-name="cosmos-agent" \
+              -format=json | jq -r '.auth.client_token')
+
+          echo "Cosmos tokens created successfully"
+
+          # Store tokens in SSM
+          echo ""
+          echo "Storing Cosmos tokens in SSM Parameter Store..."
+
+          cloud_put_secret \
+            "/$CLUSTER_NAME/cosmos/controller-token" \
+            "$CONTROLLER_TOKEN" \
+            "$REGION" \
+            "Vault token for cosmos-controller (policy: cosmos-controller)" \
+            2>&1 | tee /var/log/cosmos-controller-token.log || \
+          cloud_update_secret \
+            "/$CLUSTER_NAME/cosmos/controller-token" \
+            "$CONTROLLER_TOKEN" \
+            "$REGION" \
+            2>&1 | tee -a /var/log/cosmos-controller-token.log
+
+          cloud_put_secret \
+            "/$CLUSTER_NAME/cosmos/agent-token" \
+            "$AGENT_TOKEN" \
+            "$REGION" \
+            "Vault token for cosmos-agent (policy: cosmos-agent)" \
+            2>&1 | tee /var/log/cosmos-agent-token.log || \
+          cloud_update_secret \
+            "/$CLUSTER_NAME/cosmos/agent-token" \
+            "$AGENT_TOKEN" \
+            "$REGION" \
+            2>&1 | tee -a /var/log/cosmos-agent-token.log
+
+          echo "Cosmos tokens stored in SSM Parameter Store:"
+          echo "  - /$CLUSTER_NAME/cosmos/controller-token"
+          echo "  - /$CLUSTER_NAME/cosmos/agent-token"
+
+          # Also store in Consul KV for Nomad templates
+          echo ""
+          echo "Storing tokens in Consul KV for Nomad job templates..."
+          consul kv put cosmos/controller-token "$CONTROLLER_TOKEN"
+          consul kv put cosmos/agent-token "$AGENT_TOKEN"
+          echo "Cosmos tokens stored in Consul KV"
         else
           echo "ERROR: Failed to store keys in SSM Parameter Store"
           cat /var/log/vault-init-storage.log

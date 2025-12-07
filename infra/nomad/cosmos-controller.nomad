@@ -13,11 +13,11 @@ job "cosmos-controller" {
 
     network {
       port "grpc" {
-        static = 50051
+        static = 9091
       }
 
       port "http" {
-        static = 8080
+        static = 8090
       }
     }
 
@@ -46,7 +46,7 @@ job "cosmos-controller" {
       check {
         name     = "http-alive"
         type     = "http"
-        path     = "/health"
+        path     = "/api/v1/health"
         port     = "http"
         interval = "10s"
         timeout  = "2s"
@@ -63,6 +63,10 @@ job "cosmos-controller" {
 
         dns_servers = ["127.0.0.1"]
         dns_search_domains = ["service.consul"]
+
+        volumes = [
+          "/etc/cosmos:/etc/cosmos"
+        ]
       }
 
       template {
@@ -75,6 +79,7 @@ COSMOS_DB_URL="postgres://cosmos:cosmos_production@{{ .Address }}:{{ .Port }}/co
 VAULT_ADDR="http://{{ .Address }}:{{ .Port }}"
 {{ end }}
 {{- end }}
+VAULT_TOKEN="{{ key "cosmos/controller-token" }}"
 EOH
         destination = "local/services.env"
         env = true
@@ -84,7 +89,7 @@ EOH
         GRPC_PORT = "${NOMAD_PORT_grpc}"
         HTTP_PORT = "${NOMAD_PORT_http}"
         CONSUL_HTTP_ADDR = "127.0.0.1:8500"
-        VAULT_TOKEN = "root"
+        COSMOS_CERT_HOSTNAME = "cosmos-controller.service.consul"
       }
 
       resources {

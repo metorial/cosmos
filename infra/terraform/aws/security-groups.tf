@@ -259,6 +259,24 @@ resource "aws_security_group" "nomad_client" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  # Cosmos controller gRPC port
+  ingress {
+    description = "Cosmos controller gRPC"
+    from_port   = 9091
+    to_port     = 9091
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # Cosmos controller HTTP port
+  ingress {
+    description = "Cosmos controller HTTP"
+    from_port   = 8090
+    to_port     = 8090
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   # Allow communication from Nomad servers
   ingress {
     description     = "From Nomad servers"
