@@ -1,8 +1,12 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25-bookworm AS builder
 
 WORKDIR /build
 
-RUN apk add --no-cache git make protobuf-dev protoc
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    make \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV GOTOOLCHAIN=auto
 

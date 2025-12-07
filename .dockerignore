@@ -11,9 +11,7 @@ dist/
 *.tar.gz
 *.zip
 
-# Test files
-test/
-*_test.go
+# Test coverage files
 coverage.out
 coverage.html
 
