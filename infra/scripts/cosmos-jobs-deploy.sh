@@ -380,8 +380,104 @@ EOF
   fi
 fi
 
+# Deploy sentinel-commander if not running
+COMMANDER_RUNNING=$(nomad job status sentinel-commander 2>/dev/null && echo "yes" || echo "no")
+
+if [ "$COMMANDER_RUNNING" = "no" ]; then
+  echo "Deploying sentinel-commander..."
+
+  cat > /opt/nomad/jobs/sentinel-commander.nomad <<'EOF'
+job "sentinel-commander" {
+  datacenters = ["*"]
+  type        = "service"
+  node_pool   = "management"
+
+  group "commander" {
+    count = 1
+
+    constraint {
+      attribute = "${node.pool}"
+      value     = "management"
+    }
+
+    network {
+      port "grpc" {
+        static = 50052
+      }
+
+      port "http" {
+        static = 8082
+      }
+    }
+
+    service {
+      name = "sentinel-commander"
+      port = "grpc"
+
+      tags = [
+        "command-core",
+        "commander",
+      ]
+
+      check {
+        name     = "alive"
+        type     = "tcp"
+        port     = "grpc"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    service {
+      name = "sentinel-commander-http"
+      port = "http"
+
+      check {
+        name     = "http-alive"
+        type     = "http"
+        path     = "/api/v1/health"
+        port     = "http"
+        interval = "10s"
+        timeout  = "2s"
+      }
+    }
+
+    task "commander" {
+      driver = "docker"
+
+      config {
+        image = "ghcr.io/metorial/sentinel-commander:latest"
+
+        ports = ["grpc", "http"]
+      }
+
+      env {
+        GRPC_PORT = "${NOMAD_PORT_grpc}"
+        HTTP_PORT = "${NOMAD_PORT_http}"
+        CONSUL_HTTP_ADDR = "127.0.0.1:8500"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 512
+      }
+    }
+  }
+}
+EOF
+
+  nomad job run /opt/nomad/jobs/sentinel-commander.nomad
+  if [ $? -eq 0 ]; then
+    echo "sentinel-commander deployed successfully"
+  else
+    echo "ERROR: Failed to deploy sentinel-commander"
+    exit 1
+  fi
+fi
+
 echo ""
 echo "Cosmos jobs deployment complete!"
 echo "- postgres-cosmos: $(nomad job status postgres-cosmos 2>/dev/null | grep Status | awk '{print $3}')"
 echo "- cosmos-controller: $(nomad job status cosmos-controller 2>/dev/null | grep Status | awk '{print $3}')"
 echo "- traefik: $(nomad job status traefik 2>/dev/null | grep Status | awk '{print $3}')"
+echo "- sentinel-commander: $(nomad job status sentinel-commander 2>/dev/null | grep Status | awk '{print $3}')"

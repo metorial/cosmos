@@ -14,12 +14,12 @@ resource "aws_instance" "nomad_server" {
   ]
 
   user_data = templatefile("${path.module}/user-data/nomad-server.sh", {
-    cluster_name           = local.cluster_name
-    region                 = var.aws_region
-    server_count           = var.nomad_server_count
+    cluster_name            = local.cluster_name
+    region                  = var.aws_region
+    server_count            = var.nomad_server_count
     github_scripts_base_url = var.github_scripts_base_url
-    controller_addr        = "cosmos-controller.service.consul:50051"
-    commander_addr         = "command-core-commander.service.consul:50052"
+    controller_addr         = "cosmos-controller.service.consul:50051"
+    commander_addr          = "sentinel-commander.service.consul:50052"
   })
 
   metadata_options {

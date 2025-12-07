@@ -71,8 +71,8 @@ SyslogIdentifier=cosmos-agent
 WantedBy=multi-user.target
 EOF
 
-    # Update command-core-agent service
-    sudo tee /etc/systemd/system/command-core-agent.service > /dev/null <<EOF
+    # Update sentinel-agent service
+    sudo tee /etc/systemd/system/sentinel-agent.service > /dev/null <<EOF
 [Unit]
 Description=Command Core Agent (Outpost)
 Documentation=https://github.com/metorial/command-core
@@ -85,23 +85,23 @@ Restart=always
 RestartSec=10
 TimeoutStartSec=0
 
-ExecStartPre=-/usr/bin/docker stop command-core-agent
-ExecStartPre=-/usr/bin/docker rm command-core-agent
-ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/command-core-agent:latest
+ExecStartPre=-/usr/bin/docker stop sentinel-agent
+ExecStartPre=-/usr/bin/docker rm sentinel-agent
+ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/sentinel-agent:latest
 
-ExecStart=/usr/bin/docker run --rm --name command-core-agent \
+ExecStart=/usr/bin/docker run --rm --name sentinel-agent \
   --network host \
-  -v /opt/command-core-agent:/data \
-  -e COMMANDER_ADDR=command-core-commander.service.consul:50052 \
+  -v /opt/sentinel-agent:/data \
+  -e COMMANDER_ADDR=sentinel-commander.service.consul:50052 \
   -e CLUSTER_NAME=mtcosm-0001 \
   -e NODE_ID=$NODE_ID \
-  ghcr.io/metorial/command-core-agent:latest
+  ghcr.io/metorial/sentinel-agent:latest
 
-ExecStop=/usr/bin/docker stop command-core-agent
+ExecStop=/usr/bin/docker stop sentinel-agent
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=command-core-agent
+SyslogIdentifier=sentinel-agent
 
 [Install]
 WantedBy=multi-user.target
@@ -110,7 +110,7 @@ EOF
     # Reload systemd and restart services
     sudo systemctl daemon-reload
     sudo systemctl restart cosmos-agent
-    sudo systemctl restart command-core-agent
+    sudo systemctl restart sentinel-agent
 
     echo "Node fixed and services restarted"
 ENDSSH

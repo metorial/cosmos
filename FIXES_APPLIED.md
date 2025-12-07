@@ -7,7 +7,7 @@ This document summarizes all the fixes applied to make cosmos work correctly on 
 ### 1. Service Naming Mismatch ✅
 **Problem**: Terraform configuration referenced incorrect service names for cosmos services in Consul DNS.
 - Used `consul-service.service.consul` instead of `cosmos-controller.service.consul`
-- Used `command-service.service.consul` instead of `command-core-commander.service.consul`
+- Used `command-service.service.consul` instead of `sentinel-commander.service.consul`
 
 **Fixed Files**:
 - `infra/terraform/aws/consul.tf`
@@ -146,7 +146,7 @@ After applying the fixes:
 1. All agents should start successfully:
 ```bash
 systemctl status cosmos-agent
-systemctl status command-core-agent
+systemctl status sentinel-agent
 ```
 
 2. Cosmos controller should connect to database and vault:

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Agent installation and setup functions (cosmos-agent, command-core-agent)
+# Agent installation and setup functions (cosmos-agent, sentinel-agent)
 
 install_cosmos_agent() {
     local controller_addr=$1
@@ -76,13 +76,13 @@ install_command_core_agent() {
     local commander_addr=$1
     local cluster_name=$2
 
-    log_section "Installing command-core-agent"
+    log_section "Installing sentinel-agent"
 
     # Get the node ID
     local node_id=$(cat /etc/machine-id)
 
-    # Create systemd service for command-core-agent
-    cat > /etc/systemd/system/command-core-agent.service <<EOF
+    # Create systemd service for sentinel-agent
+    cat > /etc/systemd/system/sentinel-agent.service <<EOF
 [Unit]
 Description=Command Core Agent (Outpost)
 Documentation=https://github.com/metorial/command-core
@@ -95,29 +95,29 @@ Restart=always
 RestartSec=10
 TimeoutStartSec=0
 
-ExecStartPre=-/usr/bin/docker stop command-core-agent
-ExecStartPre=-/usr/bin/docker rm command-core-agent
-ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/command-core-agent:latest
+ExecStartPre=-/usr/bin/docker stop sentinel-agent
+ExecStartPre=-/usr/bin/docker rm sentinel-agent
+ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/sentinel-agent:latest
 
-ExecStart=/usr/bin/docker run --rm --name command-core-agent \\
+ExecStart=/usr/bin/docker run --rm --name sentinel-agent \\
   --network host \\
-  -v /opt/command-core-agent:/data \\
+  -v /opt/sentinel-agent:/data \\
   -e COMMANDER_ADDR=$commander_addr \\
   -e CLUSTER_NAME=$cluster_name \\
   -e NODE_ID=$node_id \\
-  ghcr.io/metorial/command-core-agent:latest
+  ghcr.io/metorial/sentinel-agent:latest
 
-ExecStop=/usr/bin/docker stop command-core-agent
+ExecStop=/usr/bin/docker stop sentinel-agent
 
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=command-core-agent
+SyslogIdentifier=sentinel-agent
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-    log_success "command-core-agent service created"
+    log_success "sentinel-agent service created"
 }
 
 start_agents() {
@@ -125,7 +125,7 @@ start_agents() {
 
     # Create data directories
     mkdir -p /opt/cosmos-agent
-    mkdir -p /opt/command-core-agent
+    mkdir -p /opt/sentinel-agent
 
     # Start cosmos-agent
     log_info "Starting cosmos-agent..."
@@ -133,11 +133,11 @@ start_agents() {
     systemctl enable cosmos-agent
     systemctl start cosmos-agent
 
-    # Start command-core-agent (may not be available yet - will retry in background)
-    log_info "Starting command-core-agent..."
-    systemctl enable command-core-agent
+    # Start sentinel-agent (may not be available yet - will retry in background)
+    log_info "Starting sentinel-agent..."
+    systemctl enable sentinel-agent
     # Allow failure - image may not be accessible yet, systemd will keep retrying
-    systemctl start command-core-agent || echo "command-core-agent image not available - systemd will retry"
+    systemctl start sentinel-agent || echo "sentinel-agent image not available - systemd will retry"
 
     log_success "cosmos-agent started successfully"
 }
@@ -148,6 +148,6 @@ check_agent_status() {
     log_info "cosmos-agent status:"
     systemctl status cosmos-agent --no-pager | grep "Active:"
 
-    log_info "command-core-agent status:"
-    systemctl status command-core-agent --no-pager | grep "Active:"
+    log_info "sentinel-agent status:"
+    systemctl status sentinel-agent --no-pager | grep "Active:"
 }
