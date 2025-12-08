@@ -204,7 +204,7 @@ job "cosmos-controller" {
       }
 
       port "http" {
-        static = 8090
+        static = 5010
       }
     }
 
@@ -420,7 +420,7 @@ job "sentinel-controller" {
       }
 
       port "http" {
-        static = 8082
+        static = 5020
       }
     }
 
