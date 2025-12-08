@@ -65,7 +65,7 @@ services:
       VAULT_ADDR: "http://vault:8200"
       VAULT_TOKEN: "root"
       CONSUL_ADDR: "consul:8500"
-      COMMAND_CORE_URL: "http://mock-command-core:8080"
+      sentinel_URL: "http://mock-command-core:8080"
       NOMAD_ADDR: "http://mock-nomad:4646"
     ports:
       - "8090:8090"

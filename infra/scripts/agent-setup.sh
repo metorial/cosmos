@@ -72,8 +72,8 @@ EOF
     log_success "cosmos-agent service created with dynamic token retrieval"
 }
 
-install_command_core_agent() {
-    local commander_addr=$1
+install_sentinel_agent() {
+    local controller_addr=$1
     local cluster_name=$2
 
     log_section "Installing sentinel-agent"
@@ -102,7 +102,7 @@ ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/sentinel-agent:latest
 ExecStart=/usr/bin/docker run --rm --name sentinel-agent \\
   --network host \\
   -v /opt/sentinel-agent:/data \\
-  -e COMMANDER_ADDR=$commander_addr \\
+  -e CONTROLLER_URL=$controller_addr \\
   -e CLUSTER_NAME=$cluster_name \\
   -e NODE_ID=$node_id \\
   ghcr.io/metorial/sentinel-agent:latest
