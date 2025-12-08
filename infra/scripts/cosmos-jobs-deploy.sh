@@ -275,6 +275,7 @@ EOH
       env {
         COSMOS_GRPC_PORT = "${NOMAD_PORT_grpc}"
         COSMOS_HTTP_PORT = "${NOMAD_PORT_http}"
+        COSMOS_CERT_HOSTNAME = "cosmos-controller.service.consul"
       }
 
       resources {

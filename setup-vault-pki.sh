@@ -47,7 +47,7 @@ vault write cosmos-pki/config/urls \
 echo ""
 echo "Step 5: Create role for controller certificates..."
 vault write cosmos-pki/roles/controller \
-    allowed_domains="controller,cosmos-controller" \
+    allowed_domains="controller,cosmos-controller,service.consul" \
     allow_subdomains=true \
     allow_bare_domains=true \
     allow_localhost=true \
