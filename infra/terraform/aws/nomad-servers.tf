@@ -19,7 +19,7 @@ resource "aws_instance" "nomad_server" {
     server_count            = var.nomad_server_count
     github_scripts_base_url = var.github_scripts_base_url
     controller_addr         = "cosmos-controller.service.consul:50051"
-    commander_addr          = "sentinel-commander.service.consul:50052"
+    commander_addr          = "sentinel-controller.service.consul:50052"
   })
 
   metadata_options {

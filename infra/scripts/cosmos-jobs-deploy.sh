@@ -380,14 +380,14 @@ EOF
   fi
 fi
 
-# Deploy sentinel-commander if not running
-COMMANDER_RUNNING=$(nomad job status sentinel-commander 2>/dev/null && echo "yes" || echo "no")
+# Deploy sentinel-controller if not running
+COMMANDER_RUNNING=$(nomad job status sentinel-controller 2>/dev/null && echo "yes" || echo "no")
 
 if [ "$COMMANDER_RUNNING" = "no" ]; then
-  echo "Deploying sentinel-commander..."
+  echo "Deploying sentinel-controller..."
 
-  cat > /opt/nomad/jobs/sentinel-commander.nomad <<'EOF'
-job "sentinel-commander" {
+  cat > /opt/nomad/jobs/sentinel-controller.nomad <<'EOF'
+job "sentinel-controller" {
   datacenters = ["*"]
   type        = "service"
   node_pool   = "management"
@@ -411,11 +411,11 @@ job "sentinel-commander" {
     }
 
     service {
-      name = "sentinel-commander"
+      name = "sentinel-controller"
       port = "grpc"
 
       tags = [
-        "command-core",
+        "sentinel",
         "commander",
       ]
 
@@ -429,7 +429,7 @@ job "sentinel-commander" {
     }
 
     service {
-      name = "sentinel-commander-http"
+      name = "sentinel-controller-http"
       port = "http"
 
       check {
@@ -446,7 +446,7 @@ job "sentinel-commander" {
       driver = "docker"
 
       config {
-        image = "ghcr.io/metorial/sentinel-commander:latest"
+        image = "ghcr.io/metorial/sentinel-controller:latest"
 
         ports = ["grpc", "http"]
       }
@@ -466,11 +466,11 @@ job "sentinel-commander" {
 }
 EOF
 
-  nomad job run /opt/nomad/jobs/sentinel-commander.nomad
+  nomad job run /opt/nomad/jobs/sentinel-controller.nomad
   if [ $? -eq 0 ]; then
-    echo "sentinel-commander deployed successfully"
+    echo "sentinel-controller deployed successfully"
   else
-    echo "ERROR: Failed to deploy sentinel-commander"
+    echo "ERROR: Failed to deploy sentinel-controller"
     exit 1
   fi
 fi
@@ -480,4 +480,4 @@ echo "Cosmos jobs deployment complete!"
 echo "- postgres-cosmos: $(nomad job status postgres-cosmos 2>/dev/null | grep Status | awk '{print $3}')"
 echo "- cosmos-controller: $(nomad job status cosmos-controller 2>/dev/null | grep Status | awk '{print $3}')"
 echo "- traefik: $(nomad job status traefik 2>/dev/null | grep Status | awk '{print $3}')"
-echo "- sentinel-commander: $(nomad job status sentinel-commander 2>/dev/null | grep Status | awk '{print $3}')"
+echo "- sentinel-controller: $(nomad job status sentinel-controller 2>/dev/null | grep Status | awk '{print $3}')"

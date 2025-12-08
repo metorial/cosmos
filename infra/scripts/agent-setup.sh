@@ -84,8 +84,8 @@ install_command_core_agent() {
     # Create systemd service for sentinel-agent
     cat > /etc/systemd/system/sentinel-agent.service <<EOF
 [Unit]
-Description=Command Core Agent (Outpost)
-Documentation=https://github.com/metorial/command-core
+Description=Sentinel Agent
+Documentation=https://github.com/metorial/sentinel
 After=docker.service
 Requires=docker.service
 
