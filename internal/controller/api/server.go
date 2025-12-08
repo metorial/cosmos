@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,6 +16,9 @@ import (
 	"github.com/metorial/fleet/cosmos/internal/controller/types"
 	log "github.com/sirupsen/logrus"
 )
+
+//go:embed static/*
+var staticFiles embed.FS
 
 type ReconcilerInterface interface {
 	ProcessDeployment(deploymentID uuid.UUID, config types.ConfigurationRequest) error
@@ -68,6 +73,14 @@ func (s *Server) Start() error {
 	api.HandleFunc("/agents", s.handleListAgents).Methods("GET")
 	api.HandleFunc("/agents/{hostname}", s.handleGetAgent).Methods("GET")
 
+	// Serve static files from embedded filesystem
+	staticFS, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		log.WithError(err).Fatal("Failed to load embedded static files")
+	}
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+	router.HandleFunc("/", s.handleIndex).Methods("GET")
+
 	router.Use(loggingMiddleware)
 	router.Use(corsMiddleware)
 
@@ -99,6 +112,20 @@ func (s *Server) Stop() error {
 	return nil
 }
 
+<<<<<<< Updated upstream
+=======
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	data, err := staticFiles.ReadFile("static/index.html")
+	if err != nil {
+		log.WithError(err).Error("Failed to read index.html")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
+}
+
+>>>>>>> Stashed changes
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{
 		"status": "healthy",

@@ -99,13 +99,13 @@ ExecStartPre=-/usr/bin/docker stop sentinel-agent
 ExecStartPre=-/usr/bin/docker rm sentinel-agent
 ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/sentinel-agent:latest
 
-ExecStart=/usr/bin/docker run --rm --name sentinel-agent \\
+ExecStart=/bin/bash -c '/usr/bin/docker run --rm --name sentinel-agent \\
   --network host \\
   -v /opt/sentinel-agent:/data \\
   -e COMMANDER_ADDR=$commander_addr \\
   -e CLUSTER_NAME=$cluster_name \\
   -e NODE_ID=$node_id \\
-  ghcr.io/metorial/sentinel-agent:latest
+  ghcr.io/metorial/sentinel-agent:latest'
 
 ExecStop=/usr/bin/docker stop sentinel-agent
 
