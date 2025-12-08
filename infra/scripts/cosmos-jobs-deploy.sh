@@ -59,6 +59,34 @@ if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
   exit 1
 fi
 
+# Function to deploy a Nomad job with retries
+deploy_nomad_job() {
+  local job_file=$1
+  local job_name=$2
+  local max_retries=6
+  local retry_count=0
+  local wait_time=15
+
+  while [ $retry_count -lt $max_retries ]; do
+    echo "Deploying $job_name (attempt $((retry_count + 1))/$max_retries)..."
+
+    if nomad job run "$job_file" 2>&1; then
+      echo "$job_name deployed successfully"
+      return 0
+    else
+      retry_count=$((retry_count + 1))
+      if [ $retry_count -lt $max_retries ]; then
+        echo "Failed to deploy $job_name, waiting ${wait_time}s before retry..."
+        sleep $wait_time
+        wait_time=$((wait_time + 5))  # Increase wait time for each retry
+      fi
+    fi
+  done
+
+  echo "ERROR: Failed to deploy $job_name after $max_retries attempts"
+  return 1
+}
+
 # Check if jobs are already running
 POSTGRES_RUNNING=$(nomad job status postgres-cosmos 2>/dev/null && echo "yes" || echo "no")
 CONTROLLER_RUNNING=$(nomad job status cosmos-controller 2>/dev/null && echo "yes" || echo "no")
@@ -143,11 +171,7 @@ job "postgres-cosmos" {
 }
 EOF
 
-  nomad job run /opt/nomad/jobs/postgres-cosmos.nomad
-  if [ $? -eq 0 ]; then
-    echo "postgres-cosmos deployed successfully"
-  else
-    echo "ERROR: Failed to deploy postgres-cosmos"
+  if ! deploy_nomad_job /opt/nomad/jobs/postgres-cosmos.nomad postgres-cosmos; then
     exit 1
   fi
 
@@ -264,11 +288,7 @@ EOH
 }
 EOF
 
-  nomad job run /opt/nomad/jobs/cosmos-controller.nomad
-  if [ $? -eq 0 ]; then
-    echo "cosmos-controller deployed successfully"
-  else
-    echo "ERROR: Failed to deploy cosmos-controller"
+  if ! deploy_nomad_job /opt/nomad/jobs/cosmos-controller.nomad cosmos-controller; then
     exit 1
   fi
 fi
@@ -371,11 +391,7 @@ EOH
 }
 EOF
 
-  nomad job run /opt/nomad/jobs/traefik.nomad
-  if [ $? -eq 0 ]; then
-    echo "traefik deployed successfully"
-  else
-    echo "ERROR: Failed to deploy traefik"
+  if ! deploy_nomad_job /opt/nomad/jobs/traefik.nomad traefik; then
     exit 1
   fi
 fi
@@ -466,11 +482,7 @@ job "sentinel-controller" {
 }
 EOF
 
-  nomad job run /opt/nomad/jobs/sentinel-controller.nomad
-  if [ $? -eq 0 ]; then
-    echo "sentinel-controller deployed successfully"
-  else
-    echo "ERROR: Failed to deploy sentinel-controller"
+  if ! deploy_nomad_job /opt/nomad/jobs/sentinel-controller.nomad sentinel-controller; then
     exit 1
   fi
 fi
