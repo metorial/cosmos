@@ -75,7 +75,7 @@ fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
 
 # Install agents
 install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"
-install_command_core_agent "$COMMANDER_ADDR" "$CLUSTER_NAME"
+install_sentinel_agent "$COMMANDER_ADDR" "$CLUSTER_NAME"
 start_agents
 
 # Deploy cosmos jobs (management nodes only)

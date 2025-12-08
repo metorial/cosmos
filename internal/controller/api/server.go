@@ -68,6 +68,9 @@ func (s *Server) Start() error {
 	api.HandleFunc("/agents", s.handleListAgents).Methods("GET")
 	api.HandleFunc("/agents/{hostname}", s.handleGetAgent).Methods("GET")
 
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static"))))
+	router.HandleFunc("/", s.handleIndex).Methods("GET")
+
 	router.Use(loggingMiddleware)
 	router.Use(corsMiddleware)
 
@@ -97,6 +100,10 @@ func (s *Server) Stop() error {
 	}
 
 	return nil
+}
+
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./web/static/index.html")
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

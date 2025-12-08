@@ -275,8 +275,6 @@ EOH
       env {
         GRPC_PORT = "${NOMAD_PORT_grpc}"
         HTTP_PORT = "${NOMAD_PORT_http}"
-        CONSUL_HTTP_ADDR = "127.0.0.1:8500"
-        COSMOS_CERT_HOSTNAME = "cosmos-controller.service.consul"
       }
 
       resources {
@@ -470,7 +468,6 @@ job "sentinel-controller" {
       env {
         GRPC_PORT = "${NOMAD_PORT_grpc}"
         HTTP_PORT = "${NOMAD_PORT_http}"
-        CONSUL_HTTP_ADDR = "127.0.0.1:8500"
       }
 
       resources {

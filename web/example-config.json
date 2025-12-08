@@ -1,0 +1,25 @@
+{
+  "components": [
+    {
+      "type": "script",
+      "name": "example-script",
+      "hash": "abc123",
+      "tags": ["production", "web"],
+      "handler": "bash",
+      "content": "#!/bin/bash\necho 'Hello from example script'\n",
+      "managed": true,
+      "health_check": {
+        "type": "http",
+        "endpoint": "http://localhost:8080/health",
+        "interval_seconds": 30,
+        "timeout_seconds": 5,
+        "retries": 3
+      },
+      "env": {
+        "ENV": "production",
+        "LOG_LEVEL": "info"
+      },
+      "args": ["--verbose"]
+    }
+  ]
+}
