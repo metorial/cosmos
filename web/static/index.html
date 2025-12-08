@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmos Controller</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Cosmos Controller</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="showDeployModal()">New Deployment</button>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+            <button class="tab" data-tab="nodes" onclick="switchTab('nodes')">Nodes</button>
+            <button class="tab" data-tab="components" onclick="switchTab('components')">Components</button>
+            <button class="tab" data-tab="deployments" onclick="switchTab('deployments')">Deployments</button>
+        </nav>
+
+        <main>
+            <!-- Overview Tab -->
+            <div class="tab-content active" id="overview-tab">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Nodes</div>
+                        <div class="stat-value" id="total-nodes">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Online Nodes</div>
+                        <div class="stat-value" id="online-nodes">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Components</div>
+                        <div class="stat-value" id="total-components">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Recent Deployments</div>
+                        <div class="stat-value" id="recent-deployments">-</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Recent Deployments</h2>
+                    <div id="recent-deployments-list"></div>
+                </div>
+            </div>
+
+            <!-- Nodes Tab -->
+            <div class="tab-content" id="nodes-tab">
+                <div class="section">
+                    <h2>Nodes</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Hostname</th>
+                                    <th>IP</th>
+                                    <th>Status</th>
+                                    <th>Has Agent</th>
+                                    <th>Tags</th>
+                                    <th>Last Seen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nodes-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Components Tab -->
+            <div class="tab-content" id="components-tab">
+                <div class="section">
+                    <h2>Components</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Handler</th>
+                                    <th>Tags</th>
+                                    <th>Managed</th>
+                                    <th>Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody id="components-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deployments Tab -->
+            <div class="tab-content" id="deployments-tab">
+                <div class="section">
+                    <h2>Deployments</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Started</th>
+                                    <th>Completed</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deployments-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Deploy Modal -->
+    <div id="deploy-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>New Deployment</h2>
+                <button class="close-btn" onclick="closeDeployModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Upload or paste your deployment configuration (JSON format):</p>
+                <div class="form-group">
+                    <label>Upload File:</label>
+                    <input type="file" id="config-file" accept=".json" onchange="loadConfigFile()">
+                </div>
+                <div class="form-group">
+                    <label>Or paste configuration:</label>
+                    <textarea id="config-text" rows="15" placeholder='{"components": [...]}'></textarea>
+                </div>
+                <div id="deploy-error" class="error-message"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDeployModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createDeployment()">Deploy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deployment Details Modal -->
+    <div id="details-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Deployment Details</h2>
+                <button class="close-btn" onclick="closeDetailsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="deployment-details"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
