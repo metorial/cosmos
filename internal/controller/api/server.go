@@ -112,8 +112,6 @@ func (s *Server) Stop() error {
 	return nil
 }
 
-<<<<<<< Updated upstream
-=======
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	data, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
@@ -125,7 +123,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
->>>>>>> Stashed changes
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{
 		"status": "healthy",
