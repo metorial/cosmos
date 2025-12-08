@@ -273,8 +273,8 @@ EOH
       }
 
       env {
-        GRPC_PORT = "${NOMAD_PORT_grpc}"
-        HTTP_PORT = "${NOMAD_PORT_http}"
+        COSMOS_GRPC_PORT = "${NOMAD_PORT_grpc}"
+        COSMOS_HTTP_PORT = "${NOMAD_PORT_http}"
       }
 
       resources {
@@ -463,11 +463,20 @@ job "sentinel-controller" {
         image = "ghcr.io/metorial/sentinel-controller:latest"
 
         ports = ["grpc", "http"]
+
+        dns_servers = ["127.0.0.1"]
+        dns_search_domains = ["service.consul"]
+
+        volumes = [
+          "/opt/sentinel-data:/data"
+        ]
       }
 
       env {
+        PORT = "${NOMAD_PORT_grpc}"
         GRPC_PORT = "${NOMAD_PORT_grpc}"
         HTTP_PORT = "${NOMAD_PORT_http}"
+        DB_PATH = "/data/metrics.db"
       }
 
       resources {

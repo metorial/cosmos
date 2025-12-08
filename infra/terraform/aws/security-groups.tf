@@ -277,6 +277,24 @@ resource "aws_security_group" "nomad_client" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  # Sentinel controller gRPC port
+  ingress {
+    description = "Sentinel controller gRPC"
+    from_port   = 50052
+    to_port     = 50052
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # Sentinel controller HTTP port
+  ingress {
+    description = "Sentinel controller HTTP"
+    from_port   = 8082
+    to_port     = 8082
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   # Allow communication from Nomad servers
   ingress {
     description     = "From Nomad servers"
