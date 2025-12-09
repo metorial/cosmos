@@ -246,11 +246,7 @@ job "cosmos-controller" {
       config {
         image = "ghcr.io/metorial/cosmos-controller:latest"
 
-        ports = ["grpc", "http"]
-
-        # Use host's IP for DNS (where Consul agent runs)
-        dns_servers = ["${attr.unique.network.ip-address}"]
-        dns_search_domains = ["service.consul"]
+        network_mode = "host"
 
         volumes = [
           "/etc/cosmos/controller:/etc/cosmos/controller"
@@ -269,8 +265,8 @@ EOH
       }
 
       env {
-        COSMOS_GRPC_PORT = "${NOMAD_PORT_grpc}"
-        COSMOS_HTTP_PORT = "${NOMAD_PORT_http}"
+        COSMOS_GRPC_PORT = "9091"
+        COSMOS_HTTP_PORT = "5010"
         COSMOS_CERT_HOSTNAME = "cosmos-controller.service.consul"
         COSMOS_DATA_DIR = "/data"
       }
@@ -460,11 +456,7 @@ job "sentinel-controller" {
       config {
         image = "ghcr.io/metorial/sentinel-controller:latest"
 
-        ports = ["grpc", "http"]
-
-        # Use host's IP for DNS (where Consul agent runs)
-        dns_servers = ["${attr.unique.network.ip-address}"]
-        dns_search_domains = ["service.consul"]
+        network_mode = "host"
 
         volumes = [
           "/opt/sentinel-data:/data"
@@ -472,9 +464,9 @@ job "sentinel-controller" {
       }
 
       env {
-        PORT = "${NOMAD_PORT_grpc}"
-        GRPC_PORT = "${NOMAD_PORT_grpc}"
-        HTTP_PORT = "${NOMAD_PORT_http}"
+        PORT = "50052"
+        GRPC_PORT = "50052"
+        HTTP_PORT = "5020"
         DB_PATH = "/data/metrics.db"
       }
 
