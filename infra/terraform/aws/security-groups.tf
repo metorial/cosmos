@@ -271,8 +271,8 @@ resource "aws_security_group" "nomad_client" {
   # Cosmos controller HTTP port
   ingress {
     description = "Cosmos controller HTTP"
-    from_port   = 8090
-    to_port     = 8090
+    from_port   = 5010
+    to_port     = 5010
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
@@ -289,8 +289,8 @@ resource "aws_security_group" "nomad_client" {
   # Sentinel controller HTTP port
   ingress {
     description = "Sentinel controller HTTP"
-    from_port   = 8082
-    to_port     = 8082
+    from_port   = 5020
+    to_port     = 5020
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }

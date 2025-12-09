@@ -47,7 +47,7 @@ func NewReconciler(config *ReconcilerConfig) *Reconciler {
 		heartbeatInterval = 30 * time.Second
 	}
 
-	return &Reconciler{
+	r := &Reconciler{
 		db:                config.DB,
 		componentMgr:      config.ComponentManager,
 		healthChecker:     config.HealthChecker,
@@ -57,6 +57,21 @@ func NewReconciler(config *ReconcilerConfig) *Reconciler {
 		ctx:               ctx,
 		cancel:            cancel,
 	}
+
+	// Set the reconciler as the progress reporter for the component manager
+	config.ComponentManager.SetProgressReporter(r)
+
+	return r
+}
+
+// ReportProgress implements the ProgressReporter interface
+func (r *Reconciler) ReportProgress(componentName, status, message string) {
+	r.grpcClient.SendDeploymentResult(
+		componentName,
+		"deploy",
+		status,
+		message,
+	)
 }
 
 func (r *Reconciler) Start() error {
@@ -273,6 +288,14 @@ func (r *Reconciler) handleDeployment(deployment *pb.ComponentDeployment) {
 		"hash":      deployment.Hash,
 	}).Info("Received deployment request")
 
+	// Send "received" status
+	r.grpcClient.SendDeploymentResult(
+		deployment.ComponentName,
+		"deploy",
+		"received",
+		"Deployment request received by agent",
+	)
+
 	comp := &database.Component{
 		Name:               deployment.ComponentName,
 		Type:               deployment.ComponentType,
@@ -293,6 +316,14 @@ func (r *Reconciler) handleDeployment(deployment *pb.ComponentDeployment) {
 
 	var err error
 	var operation string
+
+	// Send "started" status
+	r.grpcClient.SendDeploymentResult(
+		deployment.ComponentName,
+		"deploy",
+		"started",
+		"Starting deployment execution",
+	)
 
 	switch deployment.ComponentType {
 	case "program":

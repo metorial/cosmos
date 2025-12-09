@@ -252,6 +252,7 @@ func (s *Server) handleDeploymentResult(hostname string, result *pb.DeploymentRe
 		"component": result.ComponentName,
 		"operation": result.Operation,
 		"result":    result.Result,
+		"message":   result.Message,
 	}).Info("Received deployment result")
 
 	status := "running"
@@ -269,7 +270,34 @@ func (s *Server) handleDeploymentResult(hostname string, result *pb.DeploymentRe
 		LastUpdated:   &now,
 	}
 
-	return s.db.UpsertComponentDeployment(deployment)
+	if err := s.db.UpsertComponentDeployment(deployment); err != nil {
+		return err
+	}
+
+	// Look up the component to get its deployment_id for logging
+	component, err := s.db.GetComponent(result.ComponentName)
+	if err != nil {
+		log.WithError(err).WithField("component", result.ComponentName).Warn("Failed to get component for deployment logging")
+		return nil // Don't fail the update if we can't log
+	}
+
+	// Log the deployment result to deployment_logs table
+	if component.DeploymentID != nil {
+		deploymentLog := &database.DeploymentLog{
+			DeploymentID:  *component.DeploymentID,
+			ComponentName: result.ComponentName,
+			NodeHostname:  hostname,
+			Operation:     result.Operation,
+			Status:        result.Result,
+			Message:       result.Message,
+		}
+
+		if err := s.db.LogDeployment(deploymentLog); err != nil {
+			log.WithError(err).Warn("Failed to log deployment result")
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) registerStream(hostname string, stream pb.CosmosController_StreamAgentMessagesServer) {

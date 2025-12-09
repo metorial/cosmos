@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 type ConfigurationRequest struct {
 	Components []ComponentConfig `json:"components"`
 }
@@ -14,6 +16,7 @@ type ComponentConfig struct {
 	ContentURL         string             `json:"content_url,omitempty"`
 	ContentURLEncoding string             `json:"content_url_encoding,omitempty"`
 	NomadJob           string             `json:"nomad_job,omitempty"`
+	NomadJobData       *json.RawMessage   `json:"nomad_job_data,omitempty"`
 	Managed            bool               `json:"managed,omitempty"`
 	HealthCheck        *HealthCheckConfig `json:"health_check,omitempty"`
 	Env                map[string]string  `json:"env,omitempty"`

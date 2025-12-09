@@ -1,0 +1,77 @@
+{
+  "components": [
+    {
+      "type": "service",
+      "name": "nginx-demo",
+      "hash": "nginx-demo-v1-20251208",
+      "tags": [
+        "service"
+      ],
+      "handler": "nomad",
+      "managed": true,
+      "nomad_job": {
+        "ID": "nginx-demo",
+        "Name": "nginx-demo",
+        "Type": "service",
+        "Datacenters": [
+          "*"
+        ],
+        "NodePool": "default",
+        "Group": [
+          {
+            "Name": "nginx",
+            "Count": 2,
+            "Network": [
+              {
+                "Mode": "bridge",
+                "Port": [
+                  {
+                    "Label": "http",
+                    "To": 80
+                  }
+                ]
+              }
+            ],
+            "Service": [
+              {
+                "Name": "nginx-demo",
+                "Port": "http",
+                "Tags": [
+                  "traefik.enable=true",
+                  "traefik.http.routers.nginx-demo.rule=PathPrefix(`/nginx-demo`)",
+                  "traefik.http.routers.nginx-demo.entrypoints=http",
+                  "traefik.http.services.nginx-demo.loadbalancer.server.port=80"
+                ],
+                "Check": [
+                  {
+                    "Name": "http-health",
+                    "Type": "http",
+                    "Path": "/",
+                    "Interval": 10000000000,
+                    "Timeout": 2000000000
+                  }
+                ]
+              }
+            ],
+            "Task": [
+              {
+                "Name": "nginx",
+                "Driver": "docker",
+                "Config": {
+                  "image": "nginx:alpine",
+                  "ports": [
+                    "http"
+                  ]
+                },
+                "Resources": {
+                  "CPU": 200,
+                  "MemoryMB": 256
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

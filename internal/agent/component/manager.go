@@ -20,9 +20,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// ProgressReporter is an interface for reporting deployment progress
+type ProgressReporter interface {
+	ReportProgress(componentName, status, message string)
+}
+
 type Manager struct {
-	db      *database.AgentDB
-	dataDir string
+	db               *database.AgentDB
+	dataDir          string
+	progressReporter ProgressReporter
 }
 
 func NewManager(db *database.AgentDB, dataDir string) *Manager {
@@ -30,6 +36,10 @@ func NewManager(db *database.AgentDB, dataDir string) *Manager {
 		db:      db,
 		dataDir: dataDir,
 	}
+}
+
+func (m *Manager) SetProgressReporter(reporter ProgressReporter) {
+	m.progressReporter = reporter
 }
 
 func (m *Manager) DeployProgram(component *database.Component) error {
@@ -86,7 +96,11 @@ func (m *Manager) DeployProgram(component *database.Component) error {
 }
 
 func (m *Manager) DeployScript(component *database.Component) error {
-	log.WithField("component", component.Name).Info("Deploying managed script")
+	if component.Managed {
+		log.WithField("component", component.Name).Info("Deploying managed script")
+	} else {
+		log.WithField("component", component.Name).Info("Deploying unmanaged script")
+	}
 
 	if component.Content == "" {
 		return fmt.Errorf("content is required for scripts")
@@ -112,10 +126,145 @@ func (m *Manager) DeployScript(component *database.Component) error {
 		if err := m.StartComponent(component.Name); err != nil {
 			return fmt.Errorf("failed to start script: %w", err)
 		}
+	} else {
+		// Execute unmanaged script once immediately
+		if err := m.executeUnmanagedScript(component); err != nil {
+			return fmt.Errorf("failed to execute unmanaged script: %w", err)
+		}
 	}
 
 	log.WithField("component", component.Name).Info("Script deployed successfully")
 	return nil
+}
+
+func (m *Manager) executeUnmanagedScript(component *database.Component) error {
+	env, err := m.db.GetEnvMap(component)
+	if err != nil {
+		return fmt.Errorf("failed to get environment: %w", err)
+	}
+
+	args, err := m.db.GetArgsSlice(component)
+	if err != nil {
+		return fmt.Errorf("failed to get args: %w", err)
+	}
+
+	cmd := exec.Command(component.Executable, args...)
+
+	envVars := os.Environ()
+	for k, v := range env {
+		envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
+	}
+	cmd.Env = envVars
+	cmd.Dir = filepath.Dir(component.Executable)
+
+	logDir := filepath.Join(m.dataDir, "logs")
+	os.MkdirAll(logDir, 0755)
+
+	logFilePath := filepath.Join(logDir, component.Name+".log")
+	logFile, err := os.OpenFile(
+		logFilePath,
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0644,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer logFile.Close()
+
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+
+	log.WithField("component", component.Name).Info("Executing unmanaged script")
+
+	// Start the process
+	if err := cmd.Start(); err != nil {
+		log.WithError(err).WithField("component", component.Name).Error("Failed to start unmanaged script")
+		return fmt.Errorf("failed to start script: %w", err)
+	}
+
+	// Monitor the process and tail logs
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	// Tail the log file periodically while process is running
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	var lastOffset int64 = 0
+
+	for {
+		select {
+		case err := <-done:
+			// Process completed, read final output
+			ticker.Stop()
+			finalOutput, _ := m.readLogTail(logFilePath, lastOffset)
+			if finalOutput != "" {
+				log.WithFields(log.Fields{
+					"component": component.Name,
+					"output":    finalOutput,
+				}).Info("Script final output")
+			}
+
+			if err != nil {
+				log.WithError(err).WithField("component", component.Name).Warn("Unmanaged script execution failed")
+				return fmt.Errorf("script execution failed: %w", err)
+			}
+
+			log.WithField("component", component.Name).Info("Unmanaged script executed successfully")
+			return nil
+
+		case <-ticker.C:
+			// Read incremental output
+			output, newOffset := m.readLogTail(logFilePath, lastOffset)
+			if output != "" {
+				log.WithFields(log.Fields{
+					"component": component.Name,
+					"output":    output,
+				}).Info("Script output")
+
+				// Report progress to controller if reporter is set
+				if m.progressReporter != nil {
+					m.progressReporter.ReportProgress(
+						component.Name,
+						"running",
+						fmt.Sprintf("Output: %s", output),
+					)
+				}
+
+				lastOffset = newOffset
+			}
+		}
+	}
+}
+
+// readLogTail reads new content from a log file starting at the given offset
+func (m *Manager) readLogTail(filePath string, offset int64) (string, int64) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", offset
+	}
+	defer file.Close()
+
+	// Seek to the last known offset
+	if _, err := file.Seek(offset, 0); err != nil {
+		return "", offset
+	}
+
+	// Read new content (limit to 4KB per read to avoid huge messages)
+	buf := make([]byte, 4096)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", offset
+	}
+
+	newOffset := offset + int64(n)
+	if n > 0 {
+		return string(buf[:n]), newOffset
+	}
+
+	return "", offset
 }
 
 func (m *Manager) StartComponent(name string) error {

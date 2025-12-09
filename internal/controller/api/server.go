@@ -136,6 +136,17 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	for _, component := range req.Components {
+		if component.Type == "service" && component.NomadJob == "" && component.NomadJobData != nil {
+			job, err := json.Marshal(component.NomadJobData)
+			if err != nil {
+				respondError(w, http.StatusInternalServerError, "Failed to serialize configuration")
+				return
+			}
+			component.NomadJob = string(job)
+		}
+	}
+
 	// Allow empty components array - it means remove all components
 
 	configJSON, err := json.Marshal(req)
