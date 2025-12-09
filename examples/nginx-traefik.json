@@ -3,7 +3,7 @@
     {
       "type": "service",
       "name": "nginx-demo",
-      "hash": "nginx-demo-v1-20251208",
+      "hash": "nginx-demo-v3",
       "tags": [
         "service"
       ],
@@ -40,7 +40,8 @@
                   "traefik.enable=true",
                   "traefik.http.routers.nginx-demo.rule=PathPrefix(`/nginx-demo`)",
                   "traefik.http.routers.nginx-demo.entrypoints=http",
-                  "traefik.http.services.nginx-demo.loadbalancer.server.port=80"
+                  "traefik.http.middlewares.nginx-demo-strip.stripprefix.prefixes=/nginx-demo",
+                  "traefik.http.routers.nginx-demo.middlewares=nginx-demo-strip"
                 ],
                 "Checks": [
                   {

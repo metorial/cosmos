@@ -50,5 +50,15 @@ output "ssh_connection_command" {
 
 output "all_services_tunnel" {
   description = "SSH tunnel command to access all UIs at once"
-  value       = "ssh -L 8500:${aws_instance.consul_server[0].private_ip}:8500 -L 8200:${aws_instance.vault_server[0].private_ip}:8200 -L 4646:${aws_instance.nomad_server[0].private_ip}:4646 -L 5020:${aws_instance.nomad_management_client[0].private_ip}:5020 -L 5010:${aws_instance.nomad_management_client[0].private_ip}:5010 ubuntu@${aws_eip.bastion.public_ip}"
+  value       = "ssh -L 8500:${aws_instance.consul_server[0].private_ip}:8500 -L 8200:${aws_instance.vault_server[0].private_ip}:8200 -L 4646:${aws_instance.nomad_server[0].private_ip}:4646 -L 8081:${aws_instance.nomad_client[0].private_ip}:8081 -L 5020:${aws_instance.nomad_management_client[0].private_ip}:5020 -L 5010:${aws_instance.nomad_management_client[0].private_ip}:5010 ubuntu@${aws_eip.bastion.public_ip}"
+}
+
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer for Traefik"
+  value       = aws_lb.traefik.dns_name
+}
+
+output "alb_url" {
+  description = "HTTP URL for the Application Load Balancer"
+  value       = "http://${aws_lb.traefik.dns_name}"
 }

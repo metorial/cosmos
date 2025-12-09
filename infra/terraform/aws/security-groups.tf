@@ -232,22 +232,31 @@ resource "aws_security_group" "nomad_client" {
     security_groups = [aws_security_group.bastion.id]
   }
 
-  # HTTP for Traefik
+  # HTTP for Traefik (from ALB)
   ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id, aws_security_group.bastion.id]
   }
 
-  # HTTPS for Traefik
+  # HTTPS for Traefik (from ALB)
   ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "HTTPS from ALB"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id, aws_security_group.bastion.id]
+  }
+
+  # API for Traefik
+  ingress {
+    description     = "Traefik API"
+    from_port       = 8081
+    to_port         = 8081
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion.id]
   }
 
   # Nomad dynamic port range (for tasks)
@@ -270,11 +279,11 @@ resource "aws_security_group" "nomad_client" {
 
   # Cosmos controller HTTP port
   ingress {
-    description = "Cosmos controller HTTP"
-    from_port   = 5010
-    to_port     = 5010
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
+    description     = "Cosmos controller HTTP"
+    from_port       = 5010
+    to_port         = 5010
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion.id]
   }
 
   # Sentinel controller gRPC port
@@ -288,11 +297,11 @@ resource "aws_security_group" "nomad_client" {
 
   # Sentinel controller HTTP port
   ingress {
-    description = "Sentinel controller HTTP"
-    from_port   = 5020
-    to_port     = 5020
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
+    description     = "Sentinel controller HTTP"
+    from_port       = 5020
+    to_port         = 5020
+    protocol        = "tcp"
+    security_groups = [aws_security_group.bastion.id]
   }
 
   # Allow communication from Nomad servers

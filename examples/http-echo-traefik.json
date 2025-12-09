@@ -3,7 +3,7 @@
     {
       "type": "service",
       "name": "hello-web",
-      "hash": "hello-web-v1-20251208",
+      "hash": "hello-web-v1",
       "tags": [
         "service"
       ],
@@ -40,7 +40,6 @@
                   "traefik.enable=true",
                   "traefik.http.routers.hello-web.rule=PathPrefix(`/hello`)",
                   "traefik.http.routers.hello-web.entrypoints=http",
-                  "traefik.http.services.hello-web.loadbalancer.server.port=5678",
                   "traefik.http.middlewares.hello-web-strip.stripprefix.prefixes=/hello",
                   "traefik.http.routers.hello-web.middlewares=hello-web-strip"
                 ],
