@@ -28,7 +28,8 @@ type Deployment struct {
 }
 
 type Component struct {
-	Name               string          `gorm:"primary_key;type:varchar(255)" json:"name"`
+	ID                 uuid.UUID       `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Name               string          `gorm:"type:varchar(255);not null;uniqueIndex" json:"name"`
 	Type               string          `gorm:"type:varchar(20);not null" json:"type"`
 	Handler            string          `gorm:"type:varchar(20);not null" json:"handler"`
 	Hash               string          `gorm:"type:varchar(64);not null;index" json:"hash"`
@@ -64,7 +65,8 @@ type ComponentDeployment struct {
 }
 
 type Agent struct {
-	Hostname       string          `gorm:"primary_key;type:varchar(255)" json:"hostname"`
+	ID             uuid.UUID       `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Hostname       string          `gorm:"type:varchar(255);not null;uniqueIndex" json:"hostname"`
 	AgentVersion   string          `gorm:"type:varchar(50)" json:"agent_version"`
 	LastHeartbeat  time.Time       `gorm:"not null;index" json:"last_heartbeat"`
 	Online         bool            `gorm:"not null;default:true;index" json:"online"`
@@ -87,7 +89,8 @@ type DeploymentLog struct {
 }
 
 type Node struct {
-	Hostname string          `gorm:"primary_key;type:varchar(255)" json:"hostname"`
+	ID       uuid.UUID       `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Hostname string          `gorm:"type:varchar(255);not null;uniqueIndex" json:"hostname"`
 	IP       string          `gorm:"type:varchar(45)" json:"ip,omitempty"`
 	Tags     pq.StringArray  `gorm:"type:text[];not null;default:'{}'" json:"tags"`
 	Online   bool            `gorm:"not null;default:false;index" json:"online"`
@@ -95,6 +98,16 @@ type Node struct {
 	LastSeen *time.Time      `json:"last_seen,omitempty"`
 	Metadata json.RawMessage `gorm:"type:jsonb" json:"metadata,omitempty"`
 	SyncedAt time.Time       `gorm:"not null;default:now()" json:"synced_at"`
+}
+
+type ComponentLog struct {
+	ID            uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ComponentName string    `gorm:"type:varchar(255);not null;index:idx_component_node" json:"component_name"`
+	NodeHostname  string    `gorm:"type:varchar(255);not null;index:idx_component_node" json:"node_hostname"`
+	LogData       string    `gorm:"type:text;not null" json:"log_data"`
+	Timestamp     time.Time `gorm:"not null;index" json:"timestamp"`
+	Offset        int64     `gorm:"not null" json:"offset"`
+	CreatedAt     time.Time `gorm:"not null;default:now()" json:"created_at"`
 }
 
 func NewControllerDB(dsn string) (*ControllerDB, error) {
@@ -112,6 +125,7 @@ func NewControllerDB(dsn string) (*ControllerDB, error) {
 		&Agent{},
 		&DeploymentLog{},
 		&Node{},
+		&ComponentLog{},
 	); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
@@ -166,6 +180,22 @@ func (d *ControllerDB) UpdateDeploymentStatus(id uuid.UUID, status, errorMessage
 }
 
 func (d *ControllerDB) UpsertComponent(component *Component) error {
+	// Check if component exists by name
+	var existing Component
+	err := d.db.Where("name = ?", component.Name).First(&existing).Error
+
+	if err == gorm.ErrRecordNotFound {
+		// Component doesn't exist, create new one
+		return d.db.Create(component).Error
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Component exists, update it using the existing ID
+	component.ID = existing.ID
+	component.CreatedAt = existing.CreatedAt
 	return d.db.Save(component).Error
 }
 
@@ -230,12 +260,17 @@ func (d *ControllerDB) DeleteComponentDeployments(componentName, nodeHostname st
 
 func (d *ControllerDB) UpsertAgent(agent *Agent) error {
 	var existing Agent
-	err := d.db.First(&existing, "hostname = ?", agent.Hostname).Error
+	err := d.db.Where("hostname = ?", agent.Hostname).First(&existing).Error
 
 	if err == gorm.ErrRecordNotFound {
 		return d.db.Create(agent).Error
 	}
 
+	if err != nil {
+		return err
+	}
+
+	agent.ID = existing.ID
 	agent.CreatedAt = existing.CreatedAt
 	return d.db.Save(agent).Error
 }
@@ -279,12 +314,17 @@ func (d *ControllerDB) GetDeploymentLogs(deploymentID uuid.UUID, limit int) ([]D
 
 func (d *ControllerDB) UpsertNode(node *Node) error {
 	var existing Node
-	err := d.db.First(&existing, "hostname = ?", node.Hostname).Error
+	err := d.db.Where("hostname = ?", node.Hostname).First(&existing).Error
 
 	if err == gorm.ErrRecordNotFound {
 		return d.db.Create(node).Error
 	}
 
+	if err != nil {
+		return err
+	}
+
+	node.ID = existing.ID
 	return d.db.Save(node).Error
 }
 
@@ -315,4 +355,57 @@ func (d *ControllerDB) GetNodesByTags(tags []string) ([]Node, error) {
 func (d *ControllerDB) CleanupOldDeployments(olderThan time.Time) error {
 	return d.db.Where("created_at < ? AND status IN (?)", olderThan,
 		[]string{"completed", "failed"}).Delete(&Deployment{}).Error
+}
+
+func (d *ControllerDB) SaveComponentLog(log *ComponentLog) error {
+	return d.db.Create(log).Error
+}
+
+func (d *ControllerDB) GetComponentLogs(componentName, nodeHostname string, since time.Time, limit int) ([]ComponentLog, error) {
+	query := d.db.Where("component_name = ? AND node_hostname = ?", componentName, nodeHostname)
+	if !since.IsZero() {
+		query = query.Where("timestamp >= ?", since)
+	}
+	var logs []ComponentLog
+	err := query.Order("timestamp ASC").Limit(limit).Find(&logs).Error
+	return logs, err
+}
+
+func (d *ControllerDB) GetComponentLogsByComponent(componentName string, since time.Time, limit int) ([]ComponentLog, error) {
+	query := d.db.Where("component_name = ?", componentName)
+	if !since.IsZero() {
+		query = query.Where("timestamp >= ?", since)
+	}
+	var logs []ComponentLog
+	err := query.Order("timestamp ASC, node_hostname ASC").Limit(limit).Find(&logs).Error
+	return logs, err
+}
+
+func (d *ControllerDB) CleanupOldComponentLogs(olderThan time.Time) error {
+	return d.db.Where("created_at < ?", olderThan).Delete(&ComponentLog{}).Error
+}
+
+// CleanupComponentLogsKeepRecent keeps only the N most recent log entries per component/node combination
+func (d *ControllerDB) CleanupComponentLogsKeepRecent(keepCount int) error {
+	// Use a subquery to identify logs to keep (the most recent N per component/node)
+	// Then delete everything not in that set
+
+	// PostgreSQL: Use window function to rank logs per component/node, then delete old ones
+	query := `
+		DELETE FROM component_logs
+		WHERE id IN (
+			SELECT id FROM (
+				SELECT id,
+					ROW_NUMBER() OVER (
+						PARTITION BY component_name, node_hostname
+						ORDER BY timestamp DESC
+					) AS row_num
+				FROM component_logs
+			) ranked
+			WHERE row_num > ?
+		)
+	`
+
+	result := d.db.Exec(query, keepCount)
+	return result.Error
 }

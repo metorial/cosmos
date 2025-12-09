@@ -31,6 +31,7 @@ type AgentMessage struct {
 	//	*AgentMessage_ComponentStatus
 	//	*AgentMessage_HealthResult
 	//	*AgentMessage_DeploymentResult
+	//	*AgentMessage_LogChunk
 	Message       isAgentMessage_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -123,6 +124,15 @@ func (x *AgentMessage) GetDeploymentResult() *DeploymentResult {
 	return nil
 }
 
+func (x *AgentMessage) GetLogChunk() *LogChunk {
+	if x != nil {
+		if x, ok := x.Message.(*AgentMessage_LogChunk); ok {
+			return x.LogChunk
+		}
+	}
+	return nil
+}
+
 type isAgentMessage_Message interface {
 	isAgentMessage_Message()
 }
@@ -143,6 +153,10 @@ type AgentMessage_DeploymentResult struct {
 	DeploymentResult *DeploymentResult `protobuf:"bytes,6,opt,name=deployment_result,json=deploymentResult,proto3,oneof"`
 }
 
+type AgentMessage_LogChunk struct {
+	LogChunk *LogChunk `protobuf:"bytes,7,opt,name=log_chunk,json=logChunk,proto3,oneof"`
+}
+
 func (*AgentMessage_Heartbeat) isAgentMessage_Message() {}
 
 func (*AgentMessage_ComponentStatus) isAgentMessage_Message() {}
@@ -150,6 +164,8 @@ func (*AgentMessage_ComponentStatus) isAgentMessage_Message() {}
 func (*AgentMessage_HealthResult) isAgentMessage_Message() {}
 
 func (*AgentMessage_DeploymentResult) isAgentMessage_Message() {}
+
+func (*AgentMessage_LogChunk) isAgentMessage_Message() {}
 
 type ControllerMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -561,6 +577,74 @@ func (x *DeploymentResult) GetTimestamp() int64 {
 	return 0
 }
 
+type LogChunk struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ComponentName string                 `protobuf:"bytes,1,opt,name=component_name,json=componentName,proto3" json:"component_name,omitempty"`
+	LogData       string                 `protobuf:"bytes,2,opt,name=log_data,json=logData,proto3" json:"log_data,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Offset        int64                  `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogChunk) Reset() {
+	*x = LogChunk{}
+	mi := &file_internal_proto_cosmos_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogChunk) ProtoMessage() {}
+
+func (x *LogChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_proto_cosmos_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogChunk.ProtoReflect.Descriptor instead.
+func (*LogChunk) Descriptor() ([]byte, []int) {
+	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *LogChunk) GetComponentName() string {
+	if x != nil {
+		return x.ComponentName
+	}
+	return ""
+}
+
+func (x *LogChunk) GetLogData() string {
+	if x != nil {
+		return x.LogData
+	}
+	return ""
+}
+
+func (x *LogChunk) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *LogChunk) GetOffset() int64 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
 type Acknowledgment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -571,7 +655,7 @@ type Acknowledgment struct {
 
 func (x *Acknowledgment) Reset() {
 	*x = Acknowledgment{}
-	mi := &file_internal_proto_cosmos_proto_msgTypes[6]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +667,7 @@ func (x *Acknowledgment) String() string {
 func (*Acknowledgment) ProtoMessage() {}
 
 func (x *Acknowledgment) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_cosmos_proto_msgTypes[6]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +680,7 @@ func (x *Acknowledgment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Acknowledgment.ProtoReflect.Descriptor instead.
 func (*Acknowledgment) Descriptor() ([]byte, []int) {
-	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{6}
+	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Acknowledgment) GetSuccess() bool {
@@ -631,7 +715,7 @@ type ComponentDeployment struct {
 
 func (x *ComponentDeployment) Reset() {
 	*x = ComponentDeployment{}
-	mi := &file_internal_proto_cosmos_proto_msgTypes[7]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +727,7 @@ func (x *ComponentDeployment) String() string {
 func (*ComponentDeployment) ProtoMessage() {}
 
 func (x *ComponentDeployment) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_cosmos_proto_msgTypes[7]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +740,7 @@ func (x *ComponentDeployment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComponentDeployment.ProtoReflect.Descriptor instead.
 func (*ComponentDeployment) Descriptor() ([]byte, []int) {
-	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{7}
+	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ComponentDeployment) GetComponentName() string {
@@ -738,7 +822,7 @@ type ComponentRemoval struct {
 
 func (x *ComponentRemoval) Reset() {
 	*x = ComponentRemoval{}
-	mi := &file_internal_proto_cosmos_proto_msgTypes[8]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -750,7 +834,7 @@ func (x *ComponentRemoval) String() string {
 func (*ComponentRemoval) ProtoMessage() {}
 
 func (x *ComponentRemoval) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_cosmos_proto_msgTypes[8]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -763,7 +847,7 @@ func (x *ComponentRemoval) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComponentRemoval.ProtoReflect.Descriptor instead.
 func (*ComponentRemoval) Descriptor() ([]byte, []int) {
-	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{8}
+	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ComponentRemoval) GetComponentName() string {
@@ -787,7 +871,7 @@ type HealthCheckConfig struct {
 
 func (x *HealthCheckConfig) Reset() {
 	*x = HealthCheckConfig{}
-	mi := &file_internal_proto_cosmos_proto_msgTypes[9]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -799,7 +883,7 @@ func (x *HealthCheckConfig) String() string {
 func (*HealthCheckConfig) ProtoMessage() {}
 
 func (x *HealthCheckConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_proto_cosmos_proto_msgTypes[9]
+	mi := &file_internal_proto_cosmos_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -812,7 +896,7 @@ func (x *HealthCheckConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckConfig.ProtoReflect.Descriptor instead.
 func (*HealthCheckConfig) Descriptor() ([]byte, []int) {
-	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{9}
+	return file_internal_proto_cosmos_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *HealthCheckConfig) GetComponentName() string {
@@ -861,14 +945,15 @@ var File_internal_proto_cosmos_proto protoreflect.FileDescriptor
 
 const file_internal_proto_cosmos_proto_rawDesc = "" +
 	"\n" +
-	"\x1binternal/proto/cosmos.proto\x12\x06cosmos\"\xdc\x02\n" +
+	"\x1binternal/proto/cosmos.proto\x12\x06cosmos\"\x8d\x03\n" +
 	"\fAgentMessage\x12\x1a\n" +
 	"\bhostname\x18\x01 \x01(\tR\bhostname\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x126\n" +
 	"\theartbeat\x18\x03 \x01(\v2\x16.cosmos.AgentHeartbeatH\x00R\theartbeat\x12D\n" +
 	"\x10component_status\x18\x04 \x01(\v2\x17.cosmos.ComponentStatusH\x00R\x0fcomponentStatus\x12@\n" +
 	"\rhealth_result\x18\x05 \x01(\v2\x19.cosmos.HealthCheckResultH\x00R\fhealthResult\x12G\n" +
-	"\x11deployment_result\x18\x06 \x01(\v2\x18.cosmos.DeploymentResultH\x00R\x10deploymentResultB\t\n" +
+	"\x11deployment_result\x18\x06 \x01(\v2\x18.cosmos.DeploymentResultH\x00R\x10deploymentResult\x12/\n" +
+	"\tlog_chunk\x18\a \x01(\v2\x10.cosmos.LogChunkH\x00R\blogChunkB\t\n" +
 	"\amessage\"\x81\x02\n" +
 	"\x11ControllerMessage\x12*\n" +
 	"\x03ack\x18\x01 \x01(\v2\x16.cosmos.AcknowledgmentH\x00R\x03ack\x12=\n" +
@@ -904,7 +989,12 @@ const file_internal_proto_cosmos_proto_rawDesc = "" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x12\x16\n" +
 	"\x06result\x18\x03 \x01(\tR\x06result\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1c\n" +
-	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"D\n" +
+	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"\x82\x01\n" +
+	"\bLogChunk\x12%\n" +
+	"\x0ecomponent_name\x18\x01 \x01(\tR\rcomponentName\x12\x19\n" +
+	"\blog_data\x18\x02 \x01(\tR\alogData\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x01(\x03R\ttimestamp\x12\x16\n" +
+	"\x06offset\x18\x04 \x01(\x03R\x06offset\"D\n" +
 	"\x0eAcknowledgment\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xc0\x03\n" +
@@ -948,7 +1038,7 @@ func file_internal_proto_cosmos_proto_rawDescGZIP() []byte {
 	return file_internal_proto_cosmos_proto_rawDescData
 }
 
-var file_internal_proto_cosmos_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_internal_proto_cosmos_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_internal_proto_cosmos_proto_goTypes = []any{
 	(*AgentMessage)(nil),        // 0: cosmos.AgentMessage
 	(*ControllerMessage)(nil),   // 1: cosmos.ControllerMessage
@@ -956,33 +1046,35 @@ var file_internal_proto_cosmos_proto_goTypes = []any{
 	(*ComponentStatus)(nil),     // 3: cosmos.ComponentStatus
 	(*HealthCheckResult)(nil),   // 4: cosmos.HealthCheckResult
 	(*DeploymentResult)(nil),    // 5: cosmos.DeploymentResult
-	(*Acknowledgment)(nil),      // 6: cosmos.Acknowledgment
-	(*ComponentDeployment)(nil), // 7: cosmos.ComponentDeployment
-	(*ComponentRemoval)(nil),    // 8: cosmos.ComponentRemoval
-	(*HealthCheckConfig)(nil),   // 9: cosmos.HealthCheckConfig
-	nil,                         // 10: cosmos.AgentHeartbeat.MetadataEntry
-	nil,                         // 11: cosmos.ComponentDeployment.EnvEntry
+	(*LogChunk)(nil),            // 6: cosmos.LogChunk
+	(*Acknowledgment)(nil),      // 7: cosmos.Acknowledgment
+	(*ComponentDeployment)(nil), // 8: cosmos.ComponentDeployment
+	(*ComponentRemoval)(nil),    // 9: cosmos.ComponentRemoval
+	(*HealthCheckConfig)(nil),   // 10: cosmos.HealthCheckConfig
+	nil,                         // 11: cosmos.AgentHeartbeat.MetadataEntry
+	nil,                         // 12: cosmos.ComponentDeployment.EnvEntry
 }
 var file_internal_proto_cosmos_proto_depIdxs = []int32{
 	2,  // 0: cosmos.AgentMessage.heartbeat:type_name -> cosmos.AgentHeartbeat
 	3,  // 1: cosmos.AgentMessage.component_status:type_name -> cosmos.ComponentStatus
 	4,  // 2: cosmos.AgentMessage.health_result:type_name -> cosmos.HealthCheckResult
 	5,  // 3: cosmos.AgentMessage.deployment_result:type_name -> cosmos.DeploymentResult
-	6,  // 4: cosmos.ControllerMessage.ack:type_name -> cosmos.Acknowledgment
-	7,  // 5: cosmos.ControllerMessage.deployment:type_name -> cosmos.ComponentDeployment
-	8,  // 6: cosmos.ControllerMessage.removal:type_name -> cosmos.ComponentRemoval
-	9,  // 7: cosmos.ControllerMessage.health_config:type_name -> cosmos.HealthCheckConfig
-	10, // 8: cosmos.AgentHeartbeat.metadata:type_name -> cosmos.AgentHeartbeat.MetadataEntry
-	3,  // 9: cosmos.AgentHeartbeat.component_statuses:type_name -> cosmos.ComponentStatus
-	9,  // 10: cosmos.ComponentDeployment.health_check:type_name -> cosmos.HealthCheckConfig
-	11, // 11: cosmos.ComponentDeployment.env:type_name -> cosmos.ComponentDeployment.EnvEntry
-	0,  // 12: cosmos.CosmosController.StreamAgentMessages:input_type -> cosmos.AgentMessage
-	1,  // 13: cosmos.CosmosController.StreamAgentMessages:output_type -> cosmos.ControllerMessage
-	13, // [13:14] is the sub-list for method output_type
-	12, // [12:13] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	6,  // 4: cosmos.AgentMessage.log_chunk:type_name -> cosmos.LogChunk
+	7,  // 5: cosmos.ControllerMessage.ack:type_name -> cosmos.Acknowledgment
+	8,  // 6: cosmos.ControllerMessage.deployment:type_name -> cosmos.ComponentDeployment
+	9,  // 7: cosmos.ControllerMessage.removal:type_name -> cosmos.ComponentRemoval
+	10, // 8: cosmos.ControllerMessage.health_config:type_name -> cosmos.HealthCheckConfig
+	11, // 9: cosmos.AgentHeartbeat.metadata:type_name -> cosmos.AgentHeartbeat.MetadataEntry
+	3,  // 10: cosmos.AgentHeartbeat.component_statuses:type_name -> cosmos.ComponentStatus
+	10, // 11: cosmos.ComponentDeployment.health_check:type_name -> cosmos.HealthCheckConfig
+	12, // 12: cosmos.ComponentDeployment.env:type_name -> cosmos.ComponentDeployment.EnvEntry
+	0,  // 13: cosmos.CosmosController.StreamAgentMessages:input_type -> cosmos.AgentMessage
+	1,  // 14: cosmos.CosmosController.StreamAgentMessages:output_type -> cosmos.ControllerMessage
+	14, // [14:15] is the sub-list for method output_type
+	13, // [13:14] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_internal_proto_cosmos_proto_init() }
@@ -995,6 +1087,7 @@ func file_internal_proto_cosmos_proto_init() {
 		(*AgentMessage_ComponentStatus)(nil),
 		(*AgentMessage_HealthResult)(nil),
 		(*AgentMessage_DeploymentResult)(nil),
+		(*AgentMessage_LogChunk)(nil),
 	}
 	file_internal_proto_cosmos_proto_msgTypes[1].OneofWrappers = []any{
 		(*ControllerMessage_Ack)(nil),
@@ -1008,7 +1101,7 @@ func file_internal_proto_cosmos_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_proto_cosmos_proto_rawDesc), len(file_internal_proto_cosmos_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

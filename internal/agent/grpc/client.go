@@ -389,6 +389,28 @@ func (c *Client) SendDeploymentResult(componentName, operation, result, message 
 	}
 }
 
+func (c *Client) SendLogChunk(componentName, logData string, offset int64) error {
+	msg := &pb.AgentMessage{
+		Hostname:  c.hostname,
+		Timestamp: time.Now().Unix(),
+		Message: &pb.AgentMessage_LogChunk{
+			LogChunk: &pb.LogChunk{
+				ComponentName: componentName,
+				LogData:       logData,
+				Timestamp:     time.Now().Unix(),
+				Offset:        offset,
+			},
+		},
+	}
+
+	select {
+	case c.outgoingCh <- msg:
+		return nil
+	case <-time.After(time.Second):
+		return fmt.Errorf("timeout sending log chunk")
+	}
+}
+
 func (c *Client) ReceiveMessages() <-chan *pb.ControllerMessage {
 	return c.incomingCh
 }

@@ -137,6 +137,8 @@ func (s *Server) handleAgentMessage(hostname string, msg *pb.AgentMessage) error
 		return s.handleHealthResult(hostname, m.HealthResult)
 	case *pb.AgentMessage_DeploymentResult:
 		return s.handleDeploymentResult(hostname, m.DeploymentResult)
+	case *pb.AgentMessage_LogChunk:
+		return s.handleLogChunk(hostname, m.LogChunk)
 	default:
 		log.WithField("hostname", hostname).Warn("Received unknown message type from agent")
 	}
@@ -298,6 +300,24 @@ func (s *Server) handleDeploymentResult(hostname string, result *pb.DeploymentRe
 	}
 
 	return nil
+}
+
+func (s *Server) handleLogChunk(hostname string, logChunk *pb.LogChunk) error {
+	log.WithFields(log.Fields{
+		"hostname":  hostname,
+		"component": logChunk.ComponentName,
+		"data_size": len(logChunk.LogData),
+	}).Debug("Received log chunk")
+
+	componentLog := &database.ComponentLog{
+		ComponentName: logChunk.ComponentName,
+		NodeHostname:  hostname,
+		LogData:       logChunk.LogData,
+		Timestamp:     time.Unix(logChunk.Timestamp, 0),
+		Offset:        logChunk.Offset,
+	}
+
+	return s.db.SaveComponentLog(componentLog)
 }
 
 func (s *Server) registerStream(hostname string, stream pb.CosmosController_StreamAgentMessagesServer) {
