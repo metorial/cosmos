@@ -48,11 +48,14 @@ ExecStartPre=-/usr/bin/docker rm cosmos-agent
 ExecStartPre=/usr/bin/docker pull ghcr.io/metorial/cosmos-agent:latest
 
 ExecStart=/bin/bash -c '/usr/bin/docker run --rm --name cosmos-agent \\
+  --pid=host \\
+  --privileged \\
   --network host \\
   -v /var/run/docker.sock:/var/run/docker.sock \\
   -v /opt/cosmos-agent:/data \\
   -v /etc/cosmos:/etc/cosmos \\
   -e COSMOS_CONTROLLER_URL=cosmos-controller.service.consul:9091 \\
+  -e COSMOS_DATA_DIR=/data \\
   -e CLUSTER_NAME=$cluster_name \\
   -e NODE_ID=$node_id \\
   -e VAULT_ADDR=http://active.vault.service.consul:8200 \\

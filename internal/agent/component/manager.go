@@ -148,14 +148,37 @@ func (m *Manager) executeUnmanagedScript(component *database.Component) error {
 		return fmt.Errorf("failed to get args: %w", err)
 	}
 
-	cmd := exec.Command(component.Executable, args...)
+	hostScriptPath := filepath.Join("/opt/cosmos-agent/scripts", component.Name+".sh")
 
-	envVars := os.Environ()
+	// Use nsenter to enter host namespaces and execute the script
+	// -t 1 = target PID 1 (init/systemd on host)
+	// -m = mount namespace
+	// -u = UTS namespace
+	// -i = IPC namespace
+	// -n = network namespace
+	// -p = PID namespace
+	// -w = change working directory after entering namespace
+	nsenterArgs := []string{
+		"-t", "1",
+		"-m", "-u", "-i", "-n", "-p",
+		"-w", "/home/ubuntu",
+		"--",
+		"bash", hostScriptPath,
+	}
+
+	nsenterArgs = append(nsenterArgs, args...)
+
+	cmd := exec.Command("nsenter", nsenterArgs...)
+
+	envVars := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/root",
+		"USER=root",
+	}
 	for k, v := range env {
 		envVars = append(envVars, fmt.Sprintf("%s=%s", k, v))
 	}
 	cmd.Env = envVars
-	cmd.Dir = filepath.Dir(component.Executable)
 
 	logDir := filepath.Join(m.dataDir, "logs")
 	os.MkdirAll(logDir, 0755)
