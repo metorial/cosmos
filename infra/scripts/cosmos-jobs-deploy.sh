@@ -266,6 +266,9 @@ COSMOS_DB_URL="postgres://cosmos:cosmos_production@{{ .Address }}:{{ .Port }}/co
 VAULT_ADDR="http://{{ .Address }}:{{ .Port }}"
 {{ end }}
 {{- end }}
+{{- range $i, $s := service "nomad" }}{{ if eq $i 0 }}
+NOMAD_ADDR="http://{{ .Address }}:{{ .Port }}"
+{{ end }}{{ end }}
 VAULT_TOKEN="{{ key "cosmos/controller-token" }}"
 EOH
         destination = "local/services.env"

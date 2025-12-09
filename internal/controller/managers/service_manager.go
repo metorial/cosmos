@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/metorial/fleet/cosmos/internal/controller/types"
@@ -53,7 +54,8 @@ func (sm *ServiceManager) Deploy(config *types.ComponentConfig) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("nomad returned status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("nomad returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	log.WithField("component", config.Name).Info("Service deployed to Nomad")
