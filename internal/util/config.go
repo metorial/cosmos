@@ -110,7 +110,7 @@ func LoadControllerConfig() (*ControllerConfig, error) {
 		CertTTL:         getEnv("COSMOS_CERT_TTL", "8760h"),
 		CertRenewBefore: getEnvDuration("COSMOS_CERT_RENEW_BEFORE", 720*time.Hour),
 
-		NomadAddr: getEnv("NOMAD_ADDR", "http://nomad:4646"),
+		NomadAddr: getEnv("NOMAD_ADDR", "http://nomad.service.consul:4646"),
 
 		AgentTimeout:        getEnvDuration("COSMOS_CONTROLLER_AGENT_TIMEOUT", 90*time.Second),
 		NodeSyncInterval:    getEnvDuration("COSMOS_CONTROLLER_NODE_SYNC_INTERVAL", 5*time.Minute),

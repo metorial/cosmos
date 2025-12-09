@@ -261,14 +261,8 @@ job "cosmos-controller" {
 {{- range service "postgres-cosmos" }}
 COSMOS_DB_URL="postgres://cosmos:cosmos_production@{{ .Address }}:{{ .Port }}/cosmos?sslmode=disable"
 {{- end }}
-{{- range service "vault" "passing,warning" }}
-{{ if .Tags | contains "active" }}
-VAULT_ADDR="http://{{ .Address }}:8200"
-{{ end }}
-{{- end }}
-{{- range $i, $s := service "nomad" }}{{ if eq $i 0 }}
-NOMAD_ADDR="http://{{ .Address }}:4646"
-{{ end }}{{ end }}
+VAULT_ADDR="http://vault.service.consul:8200"
+NOMAD_ADDR="http://nomad.service.consul:4646"
 VAULT_TOKEN="{{ key "cosmos/controller-token" }}"
 EOH
         destination = "local/services.env"
