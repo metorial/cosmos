@@ -17,14 +17,14 @@
           "*"
         ],
         "NodePool": "default",
-        "Group": [
+        "TaskGroups": [
           {
             "Name": "nginx",
             "Count": 2,
-            "Network": [
+            "Networks": [
               {
                 "Mode": "bridge",
-                "Port": [
+                "DynamicPorts": [
                   {
                     "Label": "http",
                     "To": 80
@@ -32,17 +32,17 @@
                 ]
               }
             ],
-            "Service": [
+            "Services": [
               {
                 "Name": "nginx-demo",
-                "Port": "http",
+                "PortLabel": "http",
                 "Tags": [
                   "traefik.enable=true",
                   "traefik.http.routers.nginx-demo.rule=PathPrefix(`/nginx-demo`)",
                   "traefik.http.routers.nginx-demo.entrypoints=http",
                   "traefik.http.services.nginx-demo.loadbalancer.server.port=80"
                 ],
-                "Check": [
+                "Checks": [
                   {
                     "Name": "http-health",
                     "Type": "http",
@@ -53,7 +53,7 @@
                 ]
               }
             ],
-            "Task": [
+            "Tasks": [
               {
                 "Name": "nginx",
                 "Driver": "docker",

@@ -17,14 +17,14 @@
           "*"
         ],
         "NodePool": "default",
-        "Group": [
+        "TaskGroups": [
           {
             "Name": "web",
             "Count": 3,
-            "Network": [
+            "Networks": [
               {
                 "Mode": "bridge",
-                "Port": [
+                "DynamicPorts": [
                   {
                     "Label": "http",
                     "To": 5678
@@ -32,10 +32,10 @@
                 ]
               }
             ],
-            "Service": [
+            "Services": [
               {
                 "Name": "hello-web",
-                "Port": "http",
+                "PortLabel": "http",
                 "Tags": [
                   "traefik.enable=true",
                   "traefik.http.routers.hello-web.rule=PathPrefix(`/hello`)",
@@ -44,7 +44,7 @@
                   "traefik.http.middlewares.hello-web-strip.stripprefix.prefixes=/hello",
                   "traefik.http.routers.hello-web.middlewares=hello-web-strip"
                 ],
-                "Check": [
+                "Checks": [
                   {
                     "Name": "http-health",
                     "Type": "http",
@@ -55,7 +55,7 @@
                 ]
               }
             ],
-            "Task": [
+            "Tasks": [
               {
                 "Name": "web",
                 "Driver": "docker",
