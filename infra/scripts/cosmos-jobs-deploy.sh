@@ -263,11 +263,11 @@ COSMOS_DB_URL="postgres://cosmos:cosmos_production@{{ .Address }}:{{ .Port }}/co
 {{- end }}
 {{- range service "vault" "passing,warning" }}
 {{ if .Tags | contains "active" }}
-VAULT_ADDR="http://{{ .Address }}:{{ .Port }}"
+VAULT_ADDR="http://{{ .Address }}:8200"
 {{ end }}
 {{- end }}
 {{- range $i, $s := service "nomad" }}{{ if eq $i 0 }}
-NOMAD_ADDR="http://{{ .Address }}:{{ .Port }}"
+NOMAD_ADDR="http://{{ .Address }}:4646"
 {{ end }}{{ end }}
 VAULT_TOKEN="{{ key "cosmos/controller-token" }}"
 EOH
