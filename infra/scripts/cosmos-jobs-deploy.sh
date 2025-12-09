@@ -248,7 +248,8 @@ job "cosmos-controller" {
 
         ports = ["grpc", "http"]
 
-        dns_servers = ["127.0.0.1"]
+        # Use host's IP for DNS (where Consul agent runs)
+        dns_servers = ["${attr.unique.network.ip-address}"]
         dns_search_domains = ["service.consul"]
 
         volumes = [
@@ -258,9 +259,7 @@ job "cosmos-controller" {
 
       template {
         data = <<EOH
-{{- range service "postgres-cosmos" }}
-COSMOS_DB_URL="postgres://cosmos:cosmos_production@{{ .Address }}:{{ .Port }}/cosmos?sslmode=disable"
-{{- end }}
+COSMOS_DB_URL="postgres://cosmos:cosmos_production@postgres-cosmos.service.consul:5432/cosmos?sslmode=disable"
 VAULT_ADDR="http://vault.service.consul:8200"
 NOMAD_ADDR="http://nomad.service.consul:4646"
 VAULT_TOKEN="{{ key "cosmos/controller-token" }}"
@@ -463,7 +462,8 @@ job "sentinel-controller" {
 
         ports = ["grpc", "http"]
 
-        dns_servers = ["127.0.0.1"]
+        # Use host's IP for DNS (where Consul agent runs)
+        dns_servers = ["${attr.unique.network.ip-address}"]
         dns_search_domains = ["service.consul"]
 
         volumes = [
