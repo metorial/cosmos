@@ -9,7 +9,7 @@
       ],
       "handler": "nomad",
       "managed": true,
-      "nomad_job": {
+      "nomad_job_data": {
         "ID": "nginx-demo",
         "Name": "nginx-demo",
         "Type": "service",

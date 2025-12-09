@@ -157,16 +157,20 @@ func (m *Manager) executeUnmanagedScript(component *database.Component) error {
 	// -i = IPC namespace
 	// -n = network namespace
 	// -p = PID namespace
-	// -w = change working directory after entering namespace
+	// We use bash -c to set the working directory since -w flag may not be available
+	scriptCmd := fmt.Sprintf("cd /home/ubuntu && bash %s", hostScriptPath)
+	if len(args) > 0 {
+		for _, arg := range args {
+			scriptCmd += fmt.Sprintf(" %s", arg)
+		}
+	}
+
 	nsenterArgs := []string{
 		"-t", "1",
 		"-m", "-u", "-i", "-n", "-p",
-		"-w", "/home/ubuntu",
 		"--",
-		"bash", hostScriptPath,
+		"bash", "-c", scriptCmd,
 	}
-
-	nsenterArgs = append(nsenterArgs, args...)
 
 	cmd := exec.Command("nsenter", nsenterArgs...)
 

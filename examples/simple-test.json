@@ -9,7 +9,7 @@
       "type": "script",
       "content": "#!/bin/bash\necho 'Hello from Cosmos!' > /home/ubuntu/up2",
       "handler": "agent",
-      "managed": true
+      "managed": false
     }
   ]
 }

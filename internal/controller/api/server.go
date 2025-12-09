@@ -136,14 +136,14 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	for _, component := range req.Components {
-		if component.Type == "service" && component.NomadJob == "" && component.NomadJobData != nil {
-			job, err := json.Marshal(component.NomadJobData)
+	for i := range req.Components {
+		if req.Components[i].Type == "service" && req.Components[i].NomadJob == "" && req.Components[i].NomadJobData != nil {
+			job, err := json.Marshal(req.Components[i].NomadJobData)
 			if err != nil {
 				respondError(w, http.StatusInternalServerError, "Failed to serialize configuration")
 				return
 			}
-			component.NomadJob = string(job)
+			req.Components[i].NomadJob = string(job)
 		}
 	}
 

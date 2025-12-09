@@ -4,14 +4,18 @@
       "type": "service",
       "name": "hello-web",
       "hash": "hello-web-v1-20251208",
-      "tags": ["service"],
+      "tags": [
+        "service"
+      ],
       "handler": "nomad",
       "managed": true,
-      "nomad_job": {
+      "nomad_job_data": {
         "ID": "hello-web",
         "Name": "hello-web",
         "Type": "service",
-        "Datacenters": ["*"],
+        "Datacenters": [
+          "*"
+        ],
         "NodePool": "default",
         "Group": [
           {
