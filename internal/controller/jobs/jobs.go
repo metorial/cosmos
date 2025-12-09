@@ -37,6 +37,7 @@ func (jm *JobsManager) Start() {
 	go jm.markOfflineAgents()
 	go jm.syncNodesFromCommandCore()
 	go jm.cleanupOldDeployments()
+	go jm.cleanupComponentLogs()
 }
 
 func (jm *JobsManager) Stop() {
@@ -169,5 +170,33 @@ func (jm *JobsManager) cleanupOldDeployments() {
 				log.Info("Cleaned up old deployments")
 			}
 		}
+	}
+}
+
+func (jm *JobsManager) cleanupComponentLogs() {
+	// Run every hour and keep only the 500 most recent logs per component/node
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	// Run immediately on startup
+	jm.performLogCleanup()
+
+	for {
+		select {
+		case <-jm.ctx.Done():
+			return
+		case <-ticker.C:
+			jm.performLogCleanup()
+		}
+	}
+}
+
+func (jm *JobsManager) performLogCleanup() {
+	keepCount := 500
+
+	if err := jm.db.CleanupComponentLogsKeepRecent(keepCount); err != nil {
+		log.WithError(err).Warn("Failed to cleanup component logs")
+	} else {
+		log.WithField("keep_count", keepCount).Info("Cleaned up old component logs")
 	}
 }

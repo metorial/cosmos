@@ -22,6 +22,7 @@
             <button class="tab" data-tab="nodes" onclick="switchTab('nodes')">Nodes</button>
             <button class="tab" data-tab="components" onclick="switchTab('components')">Components</button>
             <button class="tab" data-tab="deployments" onclick="switchTab('deployments')">Deployments</button>
+            <button class="tab" data-tab="logs" onclick="switchTab('logs')">Logs</button>
         </nav>
 
         <main>
@@ -114,6 +115,22 @@
                             </thead>
                             <tbody id="deployments-table"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div class="tab-content" id="logs-tab">
+                <div class="section">
+                    <h2>Component Logs</h2>
+                    <div class="form-group">
+                        <label for="log-component-select">Select Component:</label>
+                        <select id="log-component-select" onchange="loadComponentLogs()">
+                            <option value="">-- Select a component --</option>
+                        </select>
+                    </div>
+                    <div id="logs-container">
+                        <div class="no-logs">Select a component to view logs</div>
                     </div>
                 </div>
             </div>

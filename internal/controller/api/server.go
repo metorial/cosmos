@@ -72,6 +72,8 @@ func (s *Server) Start() error {
 	api.HandleFunc("/nodes/{hostname}/components", s.handleGetNodeComponents).Methods("GET")
 	api.HandleFunc("/agents", s.handleListAgents).Methods("GET")
 	api.HandleFunc("/agents/{hostname}", s.handleGetAgent).Methods("GET")
+	api.HandleFunc("/logs/{component_name}", s.handleGetComponentLogs).Methods("GET")
+	api.HandleFunc("/logs/{component_name}/{node_hostname}", s.handleGetComponentNodeLogs).Methods("GET")
 
 	// Serve static files from embedded filesystem
 	staticFS, err := fs.Sub(staticFiles, "static")
@@ -341,6 +343,69 @@ func (s *Server) handleGetAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, agent)
+}
+
+func (s *Server) handleGetComponentLogs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	componentName := vars["component_name"]
+
+	sinceStr := r.URL.Query().Get("since")
+	limitStr := r.URL.Query().Get("limit")
+
+	var since time.Time
+	if sinceStr != "" {
+		if s, err := time.Parse(time.RFC3339, sinceStr); err == nil {
+			since = s
+		}
+	}
+
+	limit := 1000
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	logs, err := s.db.GetComponentLogsByComponent(componentName, since, limit)
+	if err != nil {
+		log.WithError(err).Error("Failed to get component logs")
+		respondError(w, http.StatusInternalServerError, "Failed to get component logs")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, logs)
+}
+
+func (s *Server) handleGetComponentNodeLogs(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	componentName := vars["component_name"]
+	nodeHostname := vars["node_hostname"]
+
+	sinceStr := r.URL.Query().Get("since")
+	limitStr := r.URL.Query().Get("limit")
+
+	var since time.Time
+	if sinceStr != "" {
+		if s, err := time.Parse(time.RFC3339, sinceStr); err == nil {
+			since = s
+		}
+	}
+
+	limit := 1000
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	logs, err := s.db.GetComponentLogs(componentName, nodeHostname, since, limit)
+	if err != nil {
+		log.WithError(err).Error("Failed to get component logs")
+		respondError(w, http.StatusInternalServerError, "Failed to get component logs")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, logs)
 }
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
