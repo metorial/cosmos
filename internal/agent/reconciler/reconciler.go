@@ -3,6 +3,10 @@ package reconciler
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/metorial/fleet/cosmos/internal/agent/component"
@@ -20,6 +24,10 @@ type Reconciler struct {
 	grpcClient        *agentgrpc.Client
 	interval          time.Duration
 	heartbeatInterval time.Duration
+	logStreamInterval time.Duration
+
+	logOffsets map[string]int64
+	logMu      sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -47,6 +55,8 @@ func NewReconciler(config *ReconcilerConfig) *Reconciler {
 		heartbeatInterval = 30 * time.Second
 	}
 
+	logStreamInterval := 10 * time.Second
+
 	r := &Reconciler{
 		db:                config.DB,
 		componentMgr:      config.ComponentManager,
@@ -54,6 +64,8 @@ func NewReconciler(config *ReconcilerConfig) *Reconciler {
 		grpcClient:        config.GRPCClient,
 		interval:          interval,
 		heartbeatInterval: heartbeatInterval,
+		logStreamInterval: logStreamInterval,
+		logOffsets:        make(map[string]int64),
 		ctx:               ctx,
 		cancel:            cancel,
 	}
@@ -76,12 +88,14 @@ func (r *Reconciler) ReportProgress(componentName, status, message string) {
 
 func (r *Reconciler) Start() error {
 	log.WithFields(log.Fields{
-		"reconcile_interval": r.interval,
-		"heartbeat_interval": r.heartbeatInterval,
+		"reconcile_interval":  r.interval,
+		"heartbeat_interval":  r.heartbeatInterval,
+		"log_stream_interval": r.logStreamInterval,
 	}).Info("Starting reconciler")
 
 	go r.reconcileLoop()
 	go r.heartbeatLoop()
+	go r.logStreamLoop()
 	go r.processControllerMessages()
 
 	return nil
@@ -123,6 +137,92 @@ func (r *Reconciler) heartbeatLoop() {
 			}
 		}
 	}
+}
+
+func (r *Reconciler) logStreamLoop() {
+	ticker := time.NewTicker(r.logStreamInterval)
+	defer ticker.Stop()
+
+	dataDir := "/var/lib/cosmos-agent"
+
+	for {
+		select {
+		case <-r.ctx.Done():
+			return
+		case <-ticker.C:
+			r.streamLogs(dataDir)
+		}
+	}
+}
+
+func (r *Reconciler) streamLogs(dataDir string) {
+	components, err := r.db.GetAllComponents()
+	if err != nil {
+		log.WithError(err).Debug("Failed to get components for log streaming")
+		return
+	}
+
+	for _, comp := range components {
+		if comp.Type != "script" {
+			continue
+		}
+
+		logFilePath := filepath.Join(dataDir, "logs", comp.Name+".log")
+
+		if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
+			continue
+		}
+
+		r.logMu.RLock()
+		offset := r.logOffsets[comp.Name]
+		r.logMu.RUnlock()
+
+		logData, newOffset, err := r.readLogChunk(logFilePath, offset)
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"component": comp.Name,
+				"file":      logFilePath,
+			}).Debug("Failed to read log chunk")
+			continue
+		}
+
+		if logData != "" {
+			if err := r.grpcClient.SendLogChunk(comp.Name, logData, offset); err != nil {
+				log.WithError(err).WithField("component", comp.Name).Debug("Failed to send log chunk")
+			} else {
+				r.logMu.Lock()
+				r.logOffsets[comp.Name] = newOffset
+				r.logMu.Unlock()
+			}
+		}
+	}
+}
+
+func (r *Reconciler) readLogChunk(filePath string, offset int64) (string, int64, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", offset, err
+	}
+	defer file.Close()
+
+	// Seek to the last known offset
+	if _, err := file.Seek(offset, 0); err != nil {
+		return "", offset, err
+	}
+
+	// Read new content (limit to 4KB per read to avoid huge messages)
+	buf := make([]byte, 4096)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", offset, err
+	}
+
+	newOffset := offset + int64(n)
+	if n > 0 {
+		return string(buf[:n]), newOffset, nil
+	}
+
+	return "", offset, nil
 }
 
 func (r *Reconciler) reconcile() {

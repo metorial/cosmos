@@ -27,6 +27,9 @@ function startAutoRefresh() {
             case 'deployments':
                 loadDeployments();
                 break;
+            case 'logs':
+                loadComponentLogs();
+                break;
         }
     }, 10000);
 }
@@ -60,6 +63,9 @@ function switchTab(tabName) {
             break;
         case 'deployments':
             loadDeployments();
+            break;
+        case 'logs':
+            loadLogsTab();
             break;
     }
 }
@@ -201,6 +207,36 @@ async function showDeploymentDetails(deploymentId) {
             config = deployment.configuration;
         }
 
+        // Group logs by node hostname
+        const logsByNode = {};
+        logs.reverse().forEach(log => {
+            const hostname = log.node_hostname || 'controller';
+            if (!logsByNode[hostname]) {
+                logsByNode[hostname] = [];
+            }
+            logsByNode[hostname].push(log);
+        });
+
+        // Generate logs HTML grouped by node
+        let logsHtml = '';
+        if (logs.length > 0) {
+            const nodeHostnames = Object.keys(logsByNode).sort();
+            logsHtml = nodeHostnames.map(hostname => `
+                <div class="deployment-log-node-section">
+                    <h4 class="deployment-log-node-header">${escapeHtml(hostname)} (${logsByNode[hostname].length} entries)</h4>
+                    <div class="deployment-log-entries">
+                        ${logsByNode[hostname].map(log => `
+                            <div class="log-entry ${log.status === 'success' ? 'success' : log.status === 'failed' ? 'error' : ''}">
+                                <div class="log-timestamp">${formatDate(log.created_at)}</div>
+                                <div>${escapeHtml(log.operation)} - ${escapeHtml(log.message || '')}</div>
+                                ${log.component_name ? `<div style="font-size: 11px; color: var(--text-gray);">Component: ${escapeHtml(log.component_name)}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
         const detailsHtml = `
             <div class="detail-row">
                 <div class="detail-label">ID</div>
@@ -244,13 +280,7 @@ async function showDeploymentDetails(deploymentId) {
             <div class="detail-row">
                 <div class="detail-label">Logs</div>
                 <div class="detail-value">
-                    ${logs.reverse().map(log => `
-                        <div class="log-entry ${log.status === 'success' ? 'success' : log.status === 'failed' ? 'error' : ''}">
-                            <div class="log-timestamp">${formatDate(log.created_at)}</div>
-                            <div>${escapeHtml(log.operation)} - ${escapeHtml(log.message || '')}</div>
-                            ${log.component_name ? `<div style="font-size: 11px; color: var(--text-gray);">Component: ${escapeHtml(log.component_name)}</div>` : ''}
-                        </div>
-                    `).join('')}
+                    ${logsHtml}
                 </div>
             </div>
             ` : ''}
@@ -350,6 +380,89 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Load Logs Tab
+async function loadLogsTab() {
+    try {
+        const components = await fetch(`${API_BASE}/components`).then(r => r.json());
+        const select = document.getElementById('log-component-select');
+
+        // Update dropdown with script components only
+        const scriptComponents = components.filter(c => c.type === 'script');
+        const currentSelection = select.value;
+
+        select.innerHTML = '<option value="">-- Select a component --</option>';
+        scriptComponents.forEach(comp => {
+            const option = document.createElement('option');
+            option.value = comp.name;
+            option.textContent = comp.name;
+            if (comp.name === currentSelection) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+
+        // Load logs if a component is selected
+        if (currentSelection) {
+            loadComponentLogs();
+        }
+    } catch (error) {
+        console.error('Failed to load components for logs:', error);
+    }
+}
+
+// Load Component Logs
+async function loadComponentLogs() {
+    const componentName = document.getElementById('log-component-select').value;
+    const logsContainer = document.getElementById('logs-container');
+
+    if (!componentName) {
+        logsContainer.innerHTML = '<div class="no-logs">Select a component to view logs</div>';
+        return;
+    }
+
+    try {
+        const logs = await fetch(`${API_BASE}/logs/${componentName}?limit=1000`).then(r => r.json());
+
+        if (logs.length === 0) {
+            logsContainer.innerHTML = '<div class="no-logs">No logs available for this component</div>';
+            return;
+        }
+
+        // Group logs by node hostname
+        const logsByNode = {};
+        logs.forEach(log => {
+            if (!logsByNode[log.node_hostname]) {
+                logsByNode[log.node_hostname] = [];
+            }
+            logsByNode[log.node_hostname].push(log);
+        });
+
+        // Render logs grouped by node
+        let html = '';
+        Object.keys(logsByNode).sort().forEach(hostname => {
+            const nodeLogs = logsByNode[hostname];
+            html += `
+                <div class="log-node-section">
+                    <h3 class="log-node-header">${escapeHtml(hostname)} (${nodeLogs.length} log entries)</h3>
+                    <div class="log-entries">
+                        ${nodeLogs.map(log => `
+                            <div class="log-entry">
+                                <span class="log-timestamp">${formatDate(log.timestamp)}</span>
+                                <pre class="log-data">${escapeHtml(log.log_data)}</pre>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        logsContainer.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to load component logs:', error);
+        logsContainer.innerHTML = '<div class="error-message active">Failed to load logs</div>';
+    }
 }
 
 // Close modals when clicking outside
