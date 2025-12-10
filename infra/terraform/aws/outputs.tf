@@ -77,3 +77,40 @@ output "certificate_arn" {
   description = "ARN of the ACM certificate"
   value       = aws_acm_certificate.alb.arn
 }
+
+# Aurora Outputs
+output "aurora_cluster_id" {
+  description = "Aurora cluster identifier"
+  value       = aws_rds_cluster.aurora.cluster_identifier
+}
+
+output "aurora_cluster_endpoint" {
+  description = "Aurora cluster writer endpoint"
+  value       = aws_rds_cluster.aurora.endpoint
+}
+
+output "aurora_cluster_reader_endpoint" {
+  description = "Aurora cluster reader endpoint"
+  value       = aws_rds_cluster.aurora.reader_endpoint
+}
+
+output "aurora_cluster_port" {
+  description = "Aurora cluster port"
+  value       = aws_rds_cluster.aurora.port
+}
+
+output "aurora_database_name" {
+  description = "Name of the default database"
+  value       = aws_rds_cluster.aurora.database_name
+}
+
+output "aurora_master_username" {
+  description = "Master username for Aurora"
+  value       = aws_rds_cluster.aurora.master_username
+  sensitive   = true
+}
+
+output "aurora_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing Aurora master credentials"
+  value       = aws_secretsmanager_secret.aurora_master_password.arn
+}

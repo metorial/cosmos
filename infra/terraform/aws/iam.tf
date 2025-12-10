@@ -82,6 +82,22 @@ data "aws_iam_policy_document" "vault_kms" {
   }
 }
 
+# IAM Policy for Vault to access Secrets Manager (Aurora credentials)
+data "aws_iam_policy_document" "vault_secrets_manager" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:DescribeSecret",
+    ]
+
+    resources = [
+      "arn:aws:secretsmanager:${var.aws_region}:*:secret:${local.cluster_name}-aurora-*"
+    ]
+  }
+}
+
 # Bastion IAM Role
 resource "aws_iam_role" "bastion" {
   name               = "${local.cluster_name}-bastion-role"
@@ -178,6 +194,12 @@ resource "aws_iam_role_policy" "vault_server_kms" {
   name   = "${local.cluster_name}-vault-server-kms-policy"
   role   = aws_iam_role.vault_server.id
   policy = data.aws_iam_policy_document.vault_kms.json
+}
+
+resource "aws_iam_role_policy" "vault_server_secrets_manager" {
+  name   = "${local.cluster_name}-vault-server-secrets-manager-policy"
+  role   = aws_iam_role.vault_server.id
+  policy = data.aws_iam_policy_document.vault_secrets_manager.json
 }
 
 resource "aws_iam_instance_profile" "vault_server" {

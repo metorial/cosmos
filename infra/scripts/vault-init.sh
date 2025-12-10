@@ -292,6 +292,112 @@ POLICY_EOF
           consul kv put cosmos/controller-token "$CONTROLLER_TOKEN"
           consul kv put cosmos/agent-token "$AGENT_TOKEN"
           echo "Cosmos tokens stored in Consul KV"
+
+          # Configure Aurora PostgreSQL database secrets engine
+          echo ""
+          echo "Configuring Vault database secrets engine for Aurora PostgreSQL..."
+
+          # Retrieve Aurora connection info from Terraform outputs via SSM or environment
+          # These should be set as environment variables in the systemd service
+          DB_HOST=\${AURORA_ENDPOINT:-""}
+          DB_READER_HOST=\${AURORA_READER_ENDPOINT:-""}
+          DB_PORT=\${AURORA_PORT:-"5432"}
+          DB_NAME=\${AURORA_DATABASE:-"postgres"}
+
+          # Get master password from Secrets Manager
+          if [ -n "\$DB_HOST" ]; then
+            echo "Aurora endpoint found: \$DB_HOST"
+
+            # Retrieve master password from Secrets Manager
+            DB_SECRET=\$(aws secretsmanager get-secret-value \
+              --region \$REGION \
+              --secret-id "\$CLUSTER_NAME-aurora-master-password" \
+              --query 'SecretString' \
+              --output text 2>/dev/null || echo "")
+
+            if [ -n "\$DB_SECRET" ]; then
+              DB_USERNAME=\$(echo "\$DB_SECRET" | jq -r '.username')
+              DB_PASSWORD=\$(echo "\$DB_SECRET" | jq -r '.password')
+
+              # Enable database secrets engine
+              vault secrets enable -path=database database 2>&1 | grep -v "path is already in use" || true
+
+              # Configure PostgreSQL connection
+              vault write database/config/aurora-postgres \
+                plugin_name=postgresql-database-plugin \
+                allowed_roles="nomad-app-readonly,nomad-app-readwrite,admin" \
+                connection_url="postgresql://{{username}}:{{password}}@\${DB_HOST}:\${DB_PORT}/\${DB_NAME}?sslmode=require" \
+                username="\$DB_USERNAME" \
+                password="\$DB_PASSWORD" \
+                password_authentication=scram-sha-256 \
+                2>&1 | tee -a /var/log/vault-init.log
+
+              # Create read-only role
+              vault write database/roles/nomad-app-readonly \
+                db_name=aurora-postgres \
+                creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+                  GRANT CONNECT ON DATABASE \${DB_NAME} TO \"{{name}}\"; \
+                  GRANT USAGE ON SCHEMA public TO \"{{name}}\"; \
+                  GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; \
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO \"{{name}}\";" \
+                default_ttl="1h" \
+                max_ttl="24h" \
+                2>&1 | tee -a /var/log/vault-init.log
+
+              # Create read-write role
+              vault write database/roles/nomad-app-readwrite \
+                db_name=aurora-postgres \
+                creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+                  GRANT CONNECT ON DATABASE \${DB_NAME} TO \"{{name}}\"; \
+                  GRANT USAGE ON SCHEMA public TO \"{{name}}\"; \
+                  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; \
+                  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\"; \
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO \"{{name}}\"; \
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO \"{{name}}\";" \
+                default_ttl="1h" \
+                max_ttl="24h" \
+                2>&1 | tee -a /var/log/vault-init.log
+
+              # Create Vault policies for database access
+              vault policy write database-readonly - <<DB_POLICY_EOF
+path "database/creds/nomad-app-readonly" {
+  capabilities = ["read"]
+}
+DB_POLICY_EOF
+
+              vault policy write database-readwrite - <<DB_POLICY_EOF
+path "database/creds/nomad-app-readwrite" {
+  capabilities = ["read"]
+}
+DB_POLICY_EOF
+
+              vault policy write nomad-database-access - <<DB_POLICY_EOF
+path "database/creds/nomad-app-readwrite" {
+  capabilities = ["read"]
+}
+path "database/creds/nomad-app-readonly" {
+  capabilities = ["read"]
+}
+DB_POLICY_EOF
+
+              echo "Vault database secrets engine configured successfully for Aurora"
+              echo "Database roles available: nomad-app-readonly, nomad-app-readwrite"
+              echo "Vault policies created: database-readonly, database-readwrite, nomad-database-access"
+
+              # Store Aurora connection info in Consul KV for Nomad jobs
+              consul kv put aurora/endpoint "\$DB_HOST"
+              consul kv put aurora/reader-endpoint "\${DB_READER_HOST:-\$DB_HOST}"
+              consul kv put aurora/port "\$DB_PORT"
+              consul kv put aurora/database "\$DB_NAME"
+              echo "Aurora connection info stored in Consul KV"
+            else
+              echo "WARNING: Could not retrieve Aurora master password from Secrets Manager"
+              echo "You can configure the database secrets engine manually later using vault-database-setup.sh"
+            fi
+          else
+            echo "Aurora endpoint not provided. Skipping database secrets engine configuration."
+            echo "You can configure it manually later using vault-database-setup.sh"
+          fi
         else
           echo "ERROR: Failed to store keys in SSM Parameter Store"
           cat /var/log/vault-init-storage.log
@@ -372,6 +478,10 @@ Environment="VAULT_ADDR=http://127.0.0.1:8200"
 Environment="CLUSTER_NAME=CLUSTER_NAME_PLACEHOLDER"
 Environment="REGION=REGION_PLACEHOLDER"
 Environment="INSTANCE_NAME=INSTANCE_NAME_PLACEHOLDER"
+Environment="AURORA_ENDPOINT=AURORA_ENDPOINT_PLACEHOLDER"
+Environment="AURORA_READER_ENDPOINT=AURORA_READER_ENDPOINT_PLACEHOLDER"
+Environment="AURORA_PORT=AURORA_PORT_PLACEHOLDER"
+Environment="AURORA_DATABASE=AURORA_DATABASE_PLACEHOLDER"
 
 [Install]
 WantedBy=multi-user.target
@@ -389,11 +499,38 @@ setup_vault_auto_init() {
     local cluster_name=$1
     local region=$2
     local instance_name=$3
+    local aurora_endpoint=${4:-""}
+    local aurora_port=${5:-"5432"}
+    local aurora_database=${6:-"postgres"}
+    local aurora_reader_endpoint=${7:-""}
 
     log_section "Setting up Vault auto-initialization"
 
     create_vault_init_script "$cluster_name" "$region" "$instance_name"
     create_vault_init_systemd_service "$cluster_name" "$region" "$instance_name"
+
+    # Update Aurora environment variables in systemd service
+    if [ -n "$aurora_endpoint" ]; then
+        sed -i "s|AURORA_ENDPOINT_PLACEHOLDER|$aurora_endpoint|g" /etc/systemd/system/vault-init.service
+        sed -i "s|AURORA_PORT_PLACEHOLDER|$aurora_port|g" /etc/systemd/system/vault-init.service
+        sed -i "s|AURORA_DATABASE_PLACEHOLDER|$aurora_database|g" /etc/systemd/system/vault-init.service
+
+        # Set reader endpoint (use writer endpoint if reader not provided)
+        if [ -n "$aurora_reader_endpoint" ]; then
+            sed -i "s|AURORA_READER_ENDPOINT_PLACEHOLDER|$aurora_reader_endpoint|g" /etc/systemd/system/vault-init.service
+        else
+            sed -i "s|AURORA_READER_ENDPOINT_PLACEHOLDER|$aurora_endpoint|g" /etc/systemd/system/vault-init.service
+        fi
+
+        log_info "Aurora database configuration will be set up during Vault initialization"
+    else
+        # Remove Aurora environment variables if not provided
+        sed -i '/AURORA_ENDPOINT_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
+        sed -i '/AURORA_PORT_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
+        sed -i '/AURORA_DATABASE_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
+        sed -i '/AURORA_READER_ENDPOINT_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
+        log_info "Aurora database not configured. Will skip database secrets engine setup."
+    fi
 
     # Enable and start vault initialization service (runs after Vault is up)
     systemctl daemon-reload

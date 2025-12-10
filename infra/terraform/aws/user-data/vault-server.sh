@@ -9,6 +9,10 @@ CONTROLLER_ADDR="${controller_addr}"
 COMMANDER_ADDR="${commander_addr}"
 KMS_KEY_ID="${kms_key_id}"
 INSTANCE_NAME="${instance_name}"
+AURORA_ENDPOINT="${aurora_endpoint}"
+AURORA_READER_ENDPOINT="${aurora_reader_endpoint}"
+AURORA_PORT="${aurora_port}"
+AURORA_DATABASE="${aurora_database}"
 
 # Setup logging
 LOG_FILE="/var/log/vault-server-setup.log"
@@ -69,8 +73,8 @@ configure_vault_server "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME" "$KMS_KEY_ID"
 create_vault_systemd_service
 start_vault
 
-# Setup Vault auto-initialization
-setup_vault_auto_init "$CLUSTER_NAME" "$REGION" "$INSTANCE_NAME"
+# Setup Vault auto-initialization with Aurora configuration
+setup_vault_auto_init "$CLUSTER_NAME" "$REGION" "$INSTANCE_NAME" "$AURORA_ENDPOINT" "$AURORA_PORT" "$AURORA_DATABASE" "$AURORA_READER_ENDPOINT"
 
 # Install bastion SSH key
 fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"

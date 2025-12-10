@@ -21,6 +21,10 @@ resource "aws_instance" "vault_server" {
     commander_addr          = "sentinel-controller.service.consul:50052"
     kms_key_id              = aws_kms_key.vault.id
     instance_name           = "${local.cluster_name}-vault-server-${count.index + 1}"
+    aurora_endpoint         = aws_rds_cluster.aurora.endpoint
+    aurora_reader_endpoint  = aws_rds_cluster.aurora.reader_endpoint
+    aurora_port             = aws_rds_cluster.aurora.port
+    aurora_database         = aws_rds_cluster.aurora.database_name
   })
 
   metadata_options {
@@ -35,5 +39,9 @@ resource "aws_instance" "vault_server" {
     Role = "vault-server"
   })
 
-  depends_on = [aws_instance.consul_server]
+  depends_on = [
+    aws_instance.consul_server,
+    aws_rds_cluster.aurora,
+    aws_secretsmanager_secret_version.aurora_master_password
+  ]
 }

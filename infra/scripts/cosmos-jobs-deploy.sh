@@ -1,6 +1,6 @@
 #!/bin/bash
 # Cosmos Nomad Jobs Auto-Deployment
-# This script automatically deploys cosmos-controller and postgres-cosmos
+# This script automatically deploys cosmos-controller
 # after Vault initialization completes and tokens are available
 
 # Get environment from systemd or use defaults
@@ -88,97 +88,15 @@ deploy_nomad_job() {
 }
 
 # Check if jobs are already running
-POSTGRES_RUNNING=$(nomad job status postgres-cosmos 2>/dev/null && echo "yes" || echo "no")
 CONTROLLER_RUNNING=$(nomad job status cosmos-controller 2>/dev/null && echo "yes" || echo "no")
 
-if [ "$POSTGRES_RUNNING" = "yes" ] && [ "$CONTROLLER_RUNNING" = "yes" ]; then
-  echo "Cosmos jobs are already running"
+if [ "$CONTROLLER_RUNNING" = "yes" ]; then
+  echo "cosmos-controller is already running"
   exit 0
 fi
 
 # Create Nomad jobs directory
 mkdir -p /opt/nomad/jobs
-
-# Deploy postgres-cosmos if not running
-if [ "$POSTGRES_RUNNING" = "no" ]; then
-  echo "Deploying postgres-cosmos..."
-
-  cat > /opt/nomad/jobs/postgres-cosmos.nomad <<'EOF'
-job "postgres-cosmos" {
-  datacenters = ["*"]
-  type        = "service"
-  node_pool   = "management"
-
-  group "postgres" {
-    count = 1
-
-    constraint {
-      attribute = "${node.pool}"
-      value     = "management"
-    }
-
-    network {
-      port "postgres" {
-        static = 5432
-      }
-    }
-
-    service {
-      name = "postgres-cosmos"
-      port = "postgres"
-
-      tags = [
-        "database",
-        "postgres",
-        "cosmos",
-      ]
-
-      check {
-        name     = "alive"
-        type     = "tcp"
-        port     = "postgres"
-        interval = "10s"
-        timeout  = "2s"
-      }
-    }
-
-    task "postgres" {
-      driver = "docker"
-
-      config {
-        image = "postgres:15-alpine"
-
-        ports = ["postgres"]
-
-        volumes = [
-          "/opt/postgres-cosmos:/var/lib/postgresql/data"
-        ]
-      }
-
-      env {
-        POSTGRES_DB       = "cosmos"
-        POSTGRES_USER     = "cosmos"
-        POSTGRES_PASSWORD = "cosmos_production"
-        PGDATA            = "/var/lib/postgresql/data/pgdata"
-      }
-
-      resources {
-        cpu    = 500
-        memory = 512
-      }
-    }
-  }
-}
-EOF
-
-  if ! deploy_nomad_job /opt/nomad/jobs/postgres-cosmos.nomad postgres-cosmos; then
-    exit 1
-  fi
-
-  # Wait for postgres to be healthy
-  echo "Waiting for postgres-cosmos to be healthy..."
-  sleep 10
-fi
 
 # Deploy cosmos-controller if not running
 if [ "$CONTROLLER_RUNNING" = "no" ]; then
@@ -243,6 +161,11 @@ job "cosmos-controller" {
     task "controller" {
       driver = "docker"
 
+      # Request Vault access for database credentials
+      vault {
+        policies = ["cosmos-controller", "nomad-database-access"]
+      }
+
       config {
         image = "ghcr.io/metorial/cosmos-controller:latest"
 
@@ -253,15 +176,55 @@ job "cosmos-controller" {
         ]
       }
 
+      # Template for Vault PKI token
       template {
         data = <<EOH
-COSMOS_DB_URL="postgres://cosmos:cosmos_production@postgres-cosmos.service.consul:5432/cosmos?sslmode=disable"
 VAULT_ADDR="http://vault.service.consul:8200"
 NOMAD_ADDR="http://nomad.service.consul:4646"
 VAULT_TOKEN="{{ key "cosmos/controller-token" }}"
 EOH
-        destination = "local/services.env"
+        destination = "secrets/services.env"
         env = true
+      }
+
+      # Template for Aurora database credentials from Vault
+      template {
+        data = <<EOH
+{{ with secret "database/creds/nomad-app-readwrite" }}
+DB_HOST={{ key "aurora/endpoint" }}
+DB_PORT={{ key "aurora/port" }}
+DB_NAME=cosmos-controller
+DB_USER={{ .Data.username }}
+DB_PASSWORD={{ .Data.password }}
+COSMOS_DB_URL=postgresql://{{ .Data.username }}:{{ .Data.password }}@{{ key "aurora/endpoint" }}:{{ key "aurora/port" }}/cosmos-controller?sslmode=require
+{{ end }}
+EOH
+        destination = "secrets/db.env"
+        env = true
+      }
+
+      # Initialize database if needed
+      template {
+        data = <<EOH
+#!/bin/bash
+set -e
+
+# Wait for database credentials to be available
+if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+  echo "Waiting for database credentials..."
+  sleep 5
+  exit 1
+fi
+
+# Create database if it doesn't exist
+export PGPASSWORD="$DB_PASSWORD"
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'cosmos-controller'" | grep -q 1 || \
+  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE DATABASE \"cosmos-controller\""
+
+echo "Database cosmos-controller is ready"
+EOH
+        destination = "local/init-db.sh"
+        perms = "755"
       }
 
       env {
@@ -486,7 +449,8 @@ fi
 
 echo ""
 echo "Cosmos jobs deployment complete!"
-echo "- postgres-cosmos: $(nomad job status postgres-cosmos 2>/dev/null | grep Status | awk '{print $3}')"
 echo "- cosmos-controller: $(nomad job status cosmos-controller 2>/dev/null | grep Status | awk '{print $3}')"
 echo "- traefik: $(nomad job status traefik 2>/dev/null | grep Status | awk '{print $3}')"
 echo "- sentinel-controller: $(nomad job status sentinel-controller 2>/dev/null | grep Status | awk '{print $3}')"
+echo ""
+echo "Database: Aurora PostgreSQL (using Vault dynamic credentials)"

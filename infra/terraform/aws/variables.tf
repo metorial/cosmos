@@ -140,3 +140,64 @@ variable "domain_name" {
   description = "Domain name to use for the ALB (e.g., abc.example.com). The parent zone must already exist in Route 53."
   type        = string
 }
+
+# Aurora PostgreSQL Configuration
+variable "aurora_engine_version" {
+  description = "Aurora PostgreSQL engine version"
+  type        = string
+  default     = "15.4"
+}
+
+variable "aurora_database_name" {
+  description = "Name of the default database to create (each service can create its own database)"
+  type        = string
+  default     = "postgres"
+}
+
+variable "aurora_master_username" {
+  description = "Master username for Aurora database"
+  type        = string
+  default     = "dbadmin"
+}
+
+variable "aurora_instance_class" {
+  description = "Instance class for Aurora database instances (use Graviton instances like db.r6g.large)"
+  type        = string
+  default     = "db.r6g.large"
+}
+
+variable "aurora_replica_count" {
+  description = "Number of read replicas to create (0-15)"
+  type        = number
+  default     = 1
+}
+
+variable "aurora_backup_retention_period" {
+  description = "Number of days to retain automated backups (1-35)"
+  type        = number
+  default     = 7
+}
+
+variable "aurora_preferred_backup_window" {
+  description = "Daily time range during which automated backups are created (UTC)"
+  type        = string
+  default     = "03:00-04:00"
+}
+
+variable "aurora_preferred_maintenance_window" {
+  description = "Weekly time range during which system maintenance can occur (UTC)"
+  type        = string
+  default     = "mon:04:00-mon:05:00"
+}
+
+variable "aurora_deletion_protection" {
+  description = "Enable deletion protection for the Aurora cluster"
+  type        = bool
+  default     = true
+}
+
+variable "aurora_skip_final_snapshot" {
+  description = "Skip final snapshot when destroying the cluster (useful for dev/test)"
+  type        = bool
+  default     = false
+}
