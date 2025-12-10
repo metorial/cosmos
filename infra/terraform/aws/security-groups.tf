@@ -94,6 +94,15 @@ resource "aws_security_group" "consul_server" {
     cidr_blocks = [var.vpc_cidr]
   }
 
+  # Consul gRPC (for Connect)
+  ingress {
+    description = "Consul gRPC for Connect"
+    from_port   = 8502
+    to_port     = 8502
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   egress {
     description = "Allow all outbound"
     from_port   = 0

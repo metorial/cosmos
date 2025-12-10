@@ -60,6 +60,15 @@ log_level = "INFO"
 performance {
   raft_multiplier = 1
 }
+
+# Enable Consul Connect for service mesh
+connect {
+  enabled = true
+}
+
+ports {
+  grpc = 8502
+}
 EOF
 
     chown consul:consul /etc/consul.d/consul.hcl
@@ -85,6 +94,15 @@ retry_join = [
 ]
 
 log_level = "INFO"
+
+# Enable Consul Connect for service mesh
+connect {
+  enabled = true
+}
+
+ports {
+  grpc = 8502
+}
 EOF
 
     chown consul:consul /etc/consul.d/consul.hcl
