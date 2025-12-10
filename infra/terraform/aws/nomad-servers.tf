@@ -34,5 +34,8 @@ resource "aws_instance" "nomad_server" {
     Role = "nomad-server"
   })
 
-  depends_on = [aws_instance.consul_server]
+  depends_on = [
+    aws_instance.consul_server,
+    aws_rds_cluster_instance.aurora_writer
+  ]
 }

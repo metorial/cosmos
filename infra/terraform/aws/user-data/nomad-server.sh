@@ -60,7 +60,7 @@ configure_consul_dns
 
 # Install and configure Nomad
 install_nomad "$ARCH"
-configure_nomad_server "$REGION" "$SERVER_COUNT" "$PRIVATE_IP"
+configure_nomad_server "$REGION" "$SERVER_COUNT" "$PRIVATE_IP" "$CLUSTER_NAME"
 create_nomad_systemd_service "server"
 start_nomad
 

@@ -42,6 +42,7 @@ resource "aws_instance" "vault_server" {
   depends_on = [
     aws_instance.consul_server,
     aws_rds_cluster.aurora,
+    aws_rds_cluster_instance.aurora_writer,
     aws_secretsmanager_secret_version.aurora_master_password
   ]
 }

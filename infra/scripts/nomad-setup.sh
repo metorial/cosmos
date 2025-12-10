@@ -43,50 +43,152 @@ install_cni_plugins() {
     log_success "CNI plugins installed"
 }
 
-configure_nomad_vault_integration() {
-    log_info "Configuring Vault integration for Nomad..."
+setup_nomad_vault_auto_config() {
+    local cluster_name=$1
+    local region=$2
 
-    # Wait for Vault token to be available in Consul KV
-    local max_wait=120
-    local wait_count=0
-    local vault_token=""
+    log_info "Setting up Nomad-Vault auto-configuration..."
 
-    while [ $wait_count -lt $max_wait ]; do
-        vault_token=$(consul kv get nomad/vault-token 2>/dev/null || echo "")
-        if [ -n "$vault_token" ]; then
-            log_success "Vault token retrieved from Consul KV"
-            break
-        fi
-        log_info "Waiting for Vault token in Consul KV... ($wait_count/$max_wait)"
-        sleep 2
-        wait_count=$((wait_count + 2))
-    done
+    # Create the nomad-vault-config script
+    cat > /usr/local/bin/nomad-vault-config.sh <<'VAULTCONFIG'
+#!/bin/bash
+# Nomad-Vault Integration Configuration
+# This script automatically configures Nomad to integrate with Vault
+# after Vault initialization completes and tokens are available
 
-    if [ -z "$vault_token" ]; then
-        log_warn "Vault token not found in Consul KV after ${max_wait}s"
-        log_warn "Nomad will start without Vault integration"
-        return 0
-    fi
+# Get environment from systemd or use defaults
+CLUSTER_NAME="${CLUSTER_NAME:-CLUSTER_NAME_PLACEHOLDER}"
+REGION="${REGION:-REGION_PLACEHOLDER}"
 
-    # Append Vault configuration to Nomad config
-    cat >> /etc/nomad.d/nomad.hcl <<EOF
+# Logging
+exec >> /var/log/nomad-vault-config.log 2>&1
+
+echo "==================================="
+echo "Nomad-Vault Config: $(date)"
+echo "Cluster: $CLUSTER_NAME"
+echo "Region: $REGION"
+echo "==================================="
+
+# Check if Vault configuration already exists in Nomad config
+if grep -q "vault {" /etc/nomad.d/nomad.hcl; then
+  echo "Vault configuration already exists in Nomad config"
+  exit 0
+fi
+
+# Wait for Vault tokens to be available in Consul KV
+echo "Waiting for Vault tokens in Consul KV..."
+MAX_WAIT=300
+WAIT_COUNT=0
+VAULT_TOKEN=""
+
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+  VAULT_TOKEN=$(consul kv get nomad/vault-token 2>/dev/null || echo "")
+  if [ -n "$VAULT_TOKEN" ]; then
+    echo "Vault token found in Consul KV"
+    break
+  fi
+  echo "Waiting for Vault token... ($WAIT_COUNT/$MAX_WAIT)"
+  sleep 5
+  WAIT_COUNT=$((WAIT_COUNT + 5))
+done
+
+if [ -z "$VAULT_TOKEN" ]; then
+  echo "ERROR: Vault token not found in Consul KV after ${MAX_WAIT}s"
+  exit 1
+fi
+
+# Append Vault configuration to Nomad config
+echo "Adding Vault integration to Nomad configuration..."
+cat >> /etc/nomad.d/nomad.hcl <<EOF
 
 vault {
   enabled = true
   address = "http://vault.service.consul:8200"
-  token = "$vault_token"
+  token = "$VAULT_TOKEN"
   create_from_role = "nomad-cluster"
 }
 EOF
 
-    chown nomad:nomad /etc/nomad.d/nomad.hcl
-    log_success "Vault integration configured for Nomad"
+# Set correct ownership based on whether this is a server or client
+if grep -q "server {" /etc/nomad.d/nomad.hcl; then
+  # Server mode runs as nomad user
+  chown nomad:nomad /etc/nomad.d/nomad.hcl
+  echo "Configured Nomad server for Vault integration"
+else
+  # Client mode runs as root
+  chown root:root /etc/nomad.d/nomad.hcl
+  echo "Configured Nomad client for Vault integration"
+fi
+
+# Restart Nomad to apply the configuration
+echo "Restarting Nomad to apply Vault configuration..."
+systemctl restart nomad
+
+# Wait for Nomad to come back up
+sleep 5
+
+# Verify Nomad is running
+if systemctl is-active --quiet nomad; then
+  echo "Nomad restarted successfully with Vault integration"
+
+  # Verify Vault integration is working by checking logs
+  echo "Checking for Vault token renewal in logs..."
+  sleep 5
+  if journalctl -u nomad -n 50 --no-pager | grep -q "successfully renewed token"; then
+    echo "SUCCESS: Vault integration is working correctly"
+  else
+    echo "WARNING: Could not verify Vault integration from logs, but Nomad is running"
+  fi
+else
+  echo "ERROR: Nomad failed to restart"
+  exit 1
+fi
+
+echo ""
+echo "Nomad-Vault configuration complete!"
+VAULTCONFIG
+
+    # Replace placeholders
+    sed -i "s/CLUSTER_NAME_PLACEHOLDER/$cluster_name/g" /usr/local/bin/nomad-vault-config.sh
+    sed -i "s/REGION_PLACEHOLDER/$region/g" /usr/local/bin/nomad-vault-config.sh
+    chmod +x /usr/local/bin/nomad-vault-config.sh
+
+    # Create systemd service
+    cat > /etc/systemd/system/nomad-vault-config.service <<EOF
+[Unit]
+Description=Nomad-Vault Integration Auto-Configuration
+After=nomad.service consul.service
+Requires=nomad.service consul.service
+ConditionPathExists=/usr/local/bin/nomad-vault-config.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/nomad-vault-config.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+Environment="CLUSTER_NAME=$cluster_name"
+Environment="REGION=$region"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Enable and start the service in background
+    systemctl daemon-reload
+    systemctl enable nomad-vault-config.service
+    systemctl start nomad-vault-config.service &
+
+    log_success "Nomad-Vault auto-configuration service installed"
+    log_info "Nomad will automatically configure Vault integration when token becomes available"
 }
 
 configure_nomad_server() {
     local region=$1
     local server_count=$2
     local private_ip=$3
+    local cluster_name=$4
 
     log_info "Configuring Nomad server..."
 
@@ -129,8 +231,8 @@ EOF
     chown nomad:nomad /etc/nomad.d/nomad.hcl
     log_success "Nomad server configured"
 
-    # Configure Vault integration
-    configure_nomad_vault_integration
+    # Setup auto-configuration for Vault integration (will run asynchronously)
+    setup_nomad_vault_auto_config "$cluster_name" "$region"
 }
 
 configure_nomad_client() {
@@ -191,8 +293,8 @@ EOF
     chown nomad:nomad /etc/nomad.d/nomad.hcl
     log_success "Nomad client configured"
 
-    # Configure Vault integration
-    configure_nomad_vault_integration
+    # Setup auto-configuration for Vault integration (will run asynchronously)
+    setup_nomad_vault_auto_config "$cluster_name" "$region"
 }
 
 create_nomad_systemd_service() {

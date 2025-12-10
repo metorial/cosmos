@@ -63,9 +63,9 @@ fi
 deploy_nomad_job() {
   local job_file=$1
   local job_name=$2
-  local max_retries=6
+  local max_retries=3
   local retry_count=0
-  local wait_time=15
+  local wait_time=10
 
   while [ $retry_count -lt $max_retries ]; do
     echo "Deploying $job_name (attempt $((retry_count + 1))/$max_retries)..."
@@ -83,7 +83,8 @@ deploy_nomad_job() {
     fi
   done
 
-  echo "ERROR: Failed to deploy $job_name after $max_retries attempts"
+  echo "WARNING: Failed to deploy $job_name after $max_retries attempts"
+  echo "This may be expected if Docker images are not yet available"
   return 1
 }
 

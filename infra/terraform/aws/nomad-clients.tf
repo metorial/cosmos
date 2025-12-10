@@ -36,7 +36,10 @@ resource "aws_instance" "nomad_client" {
     Pool = "default"
   })
 
-  depends_on = [aws_instance.nomad_server]
+  depends_on = [
+    aws_instance.nomad_server,
+    aws_rds_cluster_instance.aurora_writer
+  ]
 }
 
 # Nomad Clients - Management Pool
@@ -77,5 +80,8 @@ resource "aws_instance" "nomad_management_client" {
     Pool = "management"
   })
 
-  depends_on = [aws_instance.nomad_server]
+  depends_on = [
+    aws_instance.nomad_server,
+    aws_rds_cluster_instance.aurora_writer
+  ]
 }
