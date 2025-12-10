@@ -115,17 +115,37 @@ start_vault() {
 
     systemctl daemon-reload
     systemctl enable vault
-    systemctl start vault
 
-    log_info "Waiting for Vault to be ready..."
-    sleep 5
+    # Start vault, but don't fail if it times out during systemd notification
+    # Vault may take longer than systemd's timeout to initialize, especially on first boot
+    systemctl start vault || true
 
-    log_success "Vault started successfully"
+    # Wait for Vault API to become responsive (more reliable than systemd status)
+    log_info "Waiting for Vault API to be ready..."
+    export VAULT_ADDR="http://127.0.0.1:8200"
 
-    log_warn "Vault needs to be initialized and unsealed manually."
-    log_info "Run the following commands on ONE Vault server:"
-    log_info "  export VAULT_ADDR='http://127.0.0.1:8200'"
-    log_info "  vault operator init"
-    log_info "Then unseal on ALL Vault servers with:"
-    log_info "  vault operator unseal <unseal-key>"
+    MAX_WAIT=60
+    WAIT_COUNT=0
+    while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+        # vault status returns exit code 2 when sealed/uninitialized, which is expected
+        # Exit code 0 = unsealed, 1 = error, 2 = sealed
+        if vault status >/dev/null 2>&1; then
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 2 ]; then
+                log_success "Vault API is responsive"
+                log_info "Vault will be automatically initialized by vault-init service"
+                return 0
+            fi
+        fi
+
+        log_info "Waiting for Vault API... ($WAIT_COUNT/$MAX_WAIT)"
+        sleep 2
+        WAIT_COUNT=$((WAIT_COUNT + 1))
+    done
+
+    log_warn "Vault API did not become responsive within $MAX_WAIT seconds"
+    log_warn "Vault may still be starting - check 'systemctl status vault' and /var/log/vault.log"
+
+    # Don't fail - let the initialization continue, as Vault might come up later
+    return 0
 }
