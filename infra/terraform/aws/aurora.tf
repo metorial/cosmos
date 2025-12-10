@@ -61,8 +61,8 @@ resource "aws_rds_cluster" "aurora" {
   storage_encrypted               = true
   kms_key_id                      = aws_kms_key.vault.arn
 
-  deletion_protection = var.aurora_deletion_protection
-  skip_final_snapshot = var.aurora_skip_final_snapshot
+  deletion_protection       = var.aurora_deletion_protection
+  skip_final_snapshot       = var.aurora_skip_final_snapshot
   final_snapshot_identifier = var.aurora_skip_final_snapshot ? null : "${local.cluster_name}-aurora-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
 
   tags = merge(local.common_tags, {

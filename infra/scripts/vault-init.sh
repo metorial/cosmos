@@ -299,25 +299,25 @@ POLICY_EOF
 
           # Retrieve Aurora connection info from Terraform outputs via SSM or environment
           # These should be set as environment variables in the systemd service
-          DB_HOST=\${AURORA_ENDPOINT:-""}
-          DB_READER_HOST=\${AURORA_READER_ENDPOINT:-""}
-          DB_PORT=\${AURORA_PORT:-"5432"}
-          DB_NAME=\${AURORA_DATABASE:-"postgres"}
+          DB_HOST=${AURORA_ENDPOINT:-""}
+          DB_READER_HOST=${AURORA_READER_ENDPOINT:-""}
+          DB_PORT=${AURORA_PORT:-"5432"}
+          DB_NAME=${AURORA_DATABASE:-"postgres"}
 
           # Get master password from Secrets Manager
-          if [ -n "\$DB_HOST" ]; then
-            echo "Aurora endpoint found: \$DB_HOST"
+          if [ -n "$DB_HOST" ]; then
+            echo "Aurora endpoint found: $DB_HOST"
 
             # Retrieve master password from Secrets Manager
-            DB_SECRET=\$(aws secretsmanager get-secret-value \
-              --region \$REGION \
-              --secret-id "\$CLUSTER_NAME-aurora-master-password" \
+            DB_SECRET=$(aws secretsmanager get-secret-value \
+              --region $REGION \
+              --secret-id "$CLUSTER_NAME-aurora-master-password" \
               --query 'SecretString' \
               --output text 2>/dev/null || echo "")
 
-            if [ -n "\$DB_SECRET" ]; then
-              DB_USERNAME=\$(echo "\$DB_SECRET" | jq -r '.username')
-              DB_PASSWORD=\$(echo "\$DB_SECRET" | jq -r '.password')
+            if [ -n "$DB_SECRET" ]; then
+              DB_USERNAME=$(echo "$DB_SECRET" | jq -r '.username')
+              DB_PASSWORD=$(echo "$DB_SECRET" | jq -r '.password')
 
               # Enable database secrets engine
               vault secrets enable -path=database database 2>&1 | grep -v "path is already in use" || true
@@ -326,9 +326,9 @@ POLICY_EOF
               vault write database/config/aurora-postgres \
                 plugin_name=postgresql-database-plugin \
                 allowed_roles="nomad-app-readonly,nomad-app-readwrite,admin" \
-                connection_url="postgresql://{{username}}:{{password}}@\${DB_HOST}:\${DB_PORT}/\${DB_NAME}?sslmode=require" \
-                username="\$DB_USERNAME" \
-                password="\$DB_PASSWORD" \
+                connection_url="postgresql://{{username}}:{{password}}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require" \
+                username="$DB_USERNAME" \
+                password="$DB_PASSWORD" \
                 password_authentication=scram-sha-256 \
                 2>&1 | tee -a /var/log/vault-init.log
 
@@ -336,7 +336,7 @@ POLICY_EOF
               vault write database/roles/nomad-app-readonly \
                 db_name=aurora-postgres \
                 creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
-                  GRANT CONNECT ON DATABASE \${DB_NAME} TO \"{{name}}\"; \
+                  GRANT CONNECT ON DATABASE ${DB_NAME} TO \"{{name}}\"; \
                   GRANT USAGE ON SCHEMA public TO \"{{name}}\"; \
                   GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; \
                   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO \"{{name}}\";" \
@@ -348,7 +348,7 @@ POLICY_EOF
               vault write database/roles/nomad-app-readwrite \
                 db_name=aurora-postgres \
                 creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
-                  GRANT CONNECT ON DATABASE \${DB_NAME} TO \"{{name}}\"; \
+                  GRANT CONNECT ON DATABASE ${DB_NAME} TO \"{{name}}\"; \
                   GRANT USAGE ON SCHEMA public TO \"{{name}}\"; \
                   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; \
                   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\"; \
@@ -385,10 +385,10 @@ DB_POLICY_EOF
               echo "Vault policies created: database-readonly, database-readwrite, nomad-database-access"
 
               # Store Aurora connection info in Consul KV for Nomad jobs
-              consul kv put aurora/endpoint "\$DB_HOST"
-              consul kv put aurora/reader-endpoint "\${DB_READER_HOST:-\$DB_HOST}"
-              consul kv put aurora/port "\$DB_PORT"
-              consul kv put aurora/database "\$DB_NAME"
+              consul kv put aurora/endpoint "$DB_HOST"
+              consul kv put aurora/reader-endpoint "${DB_READER_HOST:-$DB_HOST}"
+              consul kv put aurora/port "$DB_PORT"
+              consul kv put aurora/database "$DB_NAME"
               echo "Aurora connection info stored in Consul KV"
             else
               echo "WARNING: Could not retrieve Aurora master password from Secrets Manager"

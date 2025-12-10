@@ -145,7 +145,7 @@ variable "domain_name" {
 variable "aurora_engine_version" {
   description = "Aurora PostgreSQL engine version"
   type        = string
-  default     = "15.4"
+  default     = "15.14"
 }
 
 variable "aurora_database_name" {
