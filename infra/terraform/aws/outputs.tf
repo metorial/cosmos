@@ -59,6 +59,21 @@ output "alb_dns_name" {
 }
 
 output "alb_url" {
-  description = "HTTP URL for the Application Load Balancer"
-  value       = "http://${aws_lb.traefik.dns_name}"
+  description = "HTTPS URL for the Application Load Balancer"
+  value       = "https://${var.domain_name}"
+}
+
+output "domain_name" {
+  description = "Configured domain name"
+  value       = var.domain_name
+}
+
+output "wildcard_domain" {
+  description = "Wildcard subdomain"
+  value       = "*.${var.domain_name}"
+}
+
+output "certificate_arn" {
+  description = "ARN of the ACM certificate"
+  value       = aws_acm_certificate.alb.arn
 }

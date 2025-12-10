@@ -134,3 +134,9 @@ variable "ssh_public_key" {
   type        = string
   default     = ""
 }
+
+# Domain Configuration
+variable "domain_name" {
+  description = "Domain name to use for the ALB (e.g., abc.example.com). The parent zone must already exist in Route 53."
+  type        = string
+}

@@ -6,6 +6,15 @@ cluster_name = "my-cosmos-cluster"
 aws_region   = "us-east-1"
 environment  = "prod"
 
+# Domain Configuration (Required)
+# The parent zone must already exist in Route 53
+# Example: if your domain is "abc.example.com", the "example.com" zone must exist
+# This will:
+#   - Create an ACM certificate for abc.example.com and *.abc.example.com
+#   - Add DNS records for both the domain and wildcard pointing to the ALB
+#   - Enable HTTPS on the ALB with automatic HTTP to HTTPS redirect
+domain_name = "abc.example.com"
+
 # Network Configuration
 # vpc_cidr            = "10.0.0.0/16"
 # availability_zones  = ["us-east-1a", "us-east-1b", "us-east-1c"]
