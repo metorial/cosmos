@@ -43,6 +43,46 @@ install_cni_plugins() {
     log_success "CNI plugins installed"
 }
 
+configure_nomad_vault_integration() {
+    log_info "Configuring Vault integration for Nomad..."
+
+    # Wait for Vault token to be available in Consul KV
+    local max_wait=120
+    local wait_count=0
+    local vault_token=""
+
+    while [ $wait_count -lt $max_wait ]; do
+        vault_token=$(consul kv get nomad/vault-token 2>/dev/null || echo "")
+        if [ -n "$vault_token" ]; then
+            log_success "Vault token retrieved from Consul KV"
+            break
+        fi
+        log_info "Waiting for Vault token in Consul KV... ($wait_count/$max_wait)"
+        sleep 2
+        wait_count=$((wait_count + 2))
+    done
+
+    if [ -z "$vault_token" ]; then
+        log_warn "Vault token not found in Consul KV after ${max_wait}s"
+        log_warn "Nomad will start without Vault integration"
+        return 0
+    fi
+
+    # Append Vault configuration to Nomad config
+    cat >> /etc/nomad.d/nomad.hcl <<EOF
+
+vault {
+  enabled = true
+  address = "http://vault.service.consul:8200"
+  token = "$vault_token"
+  create_from_role = "nomad-cluster"
+}
+EOF
+
+    chown nomad:nomad /etc/nomad.d/nomad.hcl
+    log_success "Vault integration configured for Nomad"
+}
+
 configure_nomad_server() {
     local region=$1
     local server_count=$2
@@ -88,6 +128,9 @@ EOF
 
     chown nomad:nomad /etc/nomad.d/nomad.hcl
     log_success "Nomad server configured"
+
+    # Configure Vault integration
+    configure_nomad_vault_integration
 }
 
 configure_nomad_client() {
@@ -147,6 +190,9 @@ EOF
 
     chown nomad:nomad /etc/nomad.d/nomad.hcl
     log_success "Nomad client configured"
+
+    # Configure Vault integration
+    configure_nomad_vault_integration
 }
 
 create_nomad_systemd_service() {

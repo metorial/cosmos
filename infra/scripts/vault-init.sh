@@ -398,6 +398,52 @@ DB_POLICY_EOF
             echo "Aurora endpoint not provided. Skipping database secrets engine configuration."
             echo "You can configure it manually later using vault-database-setup.sh"
           fi
+
+          # Configure Nomad-Vault integration
+          echo ""
+          echo "Configuring Nomad-Vault integration..."
+
+          # Create Nomad server policy
+          vault policy write nomad-server - <<NOMAD_POLICY_EOF
+path "auth/token/create/nomad-cluster" {
+  capabilities = ["update"]
+}
+path "auth/token/roles/nomad-cluster" {
+  capabilities = ["read"]
+}
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
+path "auth/token/lookup" {
+  capabilities = ["update"]
+}
+path "auth/token/revoke-accessor" {
+  capabilities = ["update"]
+}
+path "sys/capabilities-self" {
+  capabilities = ["update"]
+}
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+NOMAD_POLICY_EOF
+
+          # Create token role for Nomad cluster
+          vault write /auth/token/roles/nomad-cluster \
+            disallowed_policies=nomad-server \
+            explicit_max_ttl=0 \
+            orphan=false \
+            period=259200 \
+            renewable=true
+
+          # Create Nomad server token
+          NOMAD_TOKEN=$(vault token create -policy nomad-server -period 72h -orphan -format=json | jq -r .auth.client_token)
+
+          # Store in Consul KV
+          consul kv put nomad/vault-token "$NOMAD_TOKEN"
+
+          echo "Nomad-Vault integration configured successfully"
+          echo "Nomad server token stored in Consul KV: nomad/vault-token"
         else
           echo "ERROR: Failed to store keys in SSM Parameter Store"
           cat /var/log/vault-init-storage.log
