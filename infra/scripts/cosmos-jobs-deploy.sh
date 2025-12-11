@@ -159,6 +159,81 @@ job "cosmos-controller" {
       }
     }
 
+    # Database initialization task (runs before controller)
+    task "init-db" {
+      driver = "docker"
+
+      lifecycle {
+        hook    = "prestart"
+        sidecar = false
+      }
+
+      vault {
+        policies = ["nomad-database-access"]
+      }
+
+      config {
+        image = "postgres:15"
+        command = "bash"
+        args = ["/local/init-db.sh"]
+      }
+
+      template {
+        data = <<EOH
+{{ with secret "database/creds/nomad-app-readwrite" }}
+DB_HOST={{ key "aurora/endpoint" }}
+DB_PORT={{ key "aurora/port" }}
+DB_USER={{ .Data.username }}
+DB_PASSWORD={{ .Data.password }}
+{{ end }}
+EOH
+        destination = "secrets/db.env"
+        env = true
+      }
+
+      template {
+        data = <<EOH
+#!/bin/bash
+set -e
+
+echo "==== Database Init Debug Info ===="
+echo "DB_HOST: \$DB_HOST"
+echo "DB_PORT: \$DB_PORT"
+echo "DB_USER: \$DB_USER"
+echo "DB_PASSWORD length: \${#DB_PASSWORD}"
+echo "=================================="
+
+echo "Checking if database exists..."
+# Temporarily disable exit on error for the grep check
+set +e
+psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/postgres?sslmode=require" -tc "SELECT 1 FROM pg_database WHERE datname = 'cosmos-controller'" | grep -q 1
+DB_EXISTS=\$?
+set -e
+
+if [ \$DB_EXISTS -eq 0 ]; then
+  echo "Database 'cosmos-controller' already exists"
+  echo "Granting permissions to current user..."
+  psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/cosmos-controller?sslmode=require" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO \"\$DB_USER\";" || echo "Permission grant may have failed, continuing..."
+else
+  echo "Database 'cosmos-controller' does not exist, creating..."
+  psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/postgres?sslmode=require" -c "CREATE DATABASE \"cosmos-controller\" OWNER \"\$DB_USER\";"
+  echo "Database created successfully with ownership"
+fi
+
+echo "Ensuring current user has all necessary permissions..."
+psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/cosmos-controller?sslmode=require" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO \"\$DB_USER\";"
+echo "Database initialization complete"
+EOH
+        destination = "local/init-db.sh"
+        perms = "755"
+      }
+
+      resources {
+        cpu    = 100
+        memory = 128
+      }
+    }
+
     task "controller" {
       driver = "docker"
 
@@ -202,30 +277,6 @@ COSMOS_DB_URL=postgresql://{{ .Data.username }}:{{ .Data.password }}@{{ key "aur
 EOH
         destination = "secrets/db.env"
         env = true
-      }
-
-      # Initialize database if needed
-      template {
-        data = <<EOH
-#!/bin/bash
-set -e
-
-# Wait for database credentials to be available
-if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
-  echo "Waiting for database credentials..."
-  sleep 5
-  exit 1
-fi
-
-# Create database if it doesn't exist
-export PGPASSWORD="$DB_PASSWORD"
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'cosmos-controller'" | grep -q 1 || \
-  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE DATABASE \"cosmos-controller\""
-
-echo "Database cosmos-controller is ready"
-EOH
-        destination = "local/init-db.sh"
-        perms = "755"
       }
 
       env {

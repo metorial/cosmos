@@ -47,6 +47,9 @@ PRIVATE_IP=$(get_private_ip)
 log_info "Architecture: $ARCH"
 log_info "Private IP: $PRIVATE_IP"
 
+# Install bastion SSH key
+fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
+
 # Install and configure Consul
 install_consul "$ARCH"
 configure_consul_server "$REGION" "$SERVER_COUNT" "$PRIVATE_IP" "$CLUSTER_NAME"
@@ -55,9 +58,6 @@ start_consul
 
 # Configure DNS for Consul
 configure_consul_dns
-
-# Install bastion SSH key
-fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
 
 # Install agents
 install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"

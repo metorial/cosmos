@@ -91,7 +91,7 @@ configure_vault_database_secrets() {
     log_info "Creating read-write database role..."
     vault write database/roles/nomad-app-readwrite \
         db_name=aurora-postgres \
-        creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+        creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN CREATEDB PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
             GRANT CONNECT ON DATABASE ${db_name} TO \"{{name}}\"; \
             GRANT USAGE ON SCHEMA public TO \"{{name}}\"; \
             GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; \

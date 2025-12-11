@@ -54,6 +54,9 @@ log_info "Architecture: $ARCH"
 log_info "Private IP: $PRIVATE_IP"
 log_info "Instance ID: $INSTANCE_ID"
 
+# Install bastion SSH key
+fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
+
 # Install and configure Consul client
 install_consul "$ARCH"
 configure_consul_client "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME"
@@ -69,9 +72,6 @@ install_cni_plugins "$ARCH"
 configure_nomad_client "$REGION" "$INSTANCE_ID" "$NODE_POOL" "$NODE_CLASS" "$CLUSTER_NAME" "$PRIVATE_IP"
 create_nomad_systemd_service "client"
 start_nomad
-
-# Install bastion SSH key
-fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
 
 # Install agents
 install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"

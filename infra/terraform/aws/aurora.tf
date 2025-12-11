@@ -39,7 +39,7 @@ resource "aws_security_group" "aurora" {
 # Random password for Aurora master user
 resource "random_password" "aurora_master_password" {
   length  = 32
-  special = true
+  special = false
 }
 
 # Aurora PostgreSQL Cluster

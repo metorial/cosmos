@@ -58,6 +58,9 @@ PRIVATE_IP=$(get_private_ip)
 log_info "Architecture: $ARCH"
 log_info "Private IP: $PRIVATE_IP"
 
+# Install bastion SSH key
+fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
+
 # Install and configure Consul client
 install_consul "$ARCH"
 configure_consul_client "$REGION" "$PRIVATE_IP" "$CLUSTER_NAME"
@@ -75,9 +78,6 @@ start_vault
 
 # Setup Vault auto-initialization with Aurora configuration
 setup_vault_auto_init "$CLUSTER_NAME" "$REGION" "$INSTANCE_NAME" "$AURORA_ENDPOINT" "$AURORA_PORT" "$AURORA_DATABASE" "$AURORA_READER_ENDPOINT"
-
-# Install bastion SSH key
-fetch_and_install_bastion_public_key "$CLUSTER_NAME" "$REGION"
 
 # Install agents
 install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"
