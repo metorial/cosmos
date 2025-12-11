@@ -169,7 +169,7 @@ job "cosmos-controller" {
       }
 
       vault {
-        policies = ["nomad-database-access"]
+        policies = ["db-access"]
       }
 
       config {
@@ -180,12 +180,10 @@ job "cosmos-controller" {
 
       template {
         data = <<EOH
-{{ with secret "database/creds/nomad-app-readwrite" }}
 DB_HOST={{ key "aurora/endpoint" }}
 DB_PORT={{ key "aurora/port" }}
-DB_USER={{ .Data.username }}
-DB_PASSWORD={{ .Data.password }}
-{{ end }}
+DB_USER={{ with secret "secret/data/aurora/master" }}{{ .Data.data.username }}{{ end }}
+DB_PASSWORD={{ with secret "secret/data/aurora/master" }}{{ .Data.data.password }}{{ end }}
 EOH
         destination = "secrets/db.env"
         env = true
@@ -196,12 +194,11 @@ EOH
 #!/bin/bash
 set -e
 
-echo "==== Database Init Debug Info ===="
+echo "==== Database Init ===="
 echo "DB_HOST: \$DB_HOST"
 echo "DB_PORT: \$DB_PORT"
 echo "DB_USER: \$DB_USER"
-echo "DB_PASSWORD length: \${#DB_PASSWORD}"
-echo "=================================="
+echo "======================="
 
 echo "Checking if database exists..."
 # Temporarily disable exit on error for the grep check
@@ -217,16 +214,6 @@ else
   psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/postgres?sslmode=require" -c "CREATE DATABASE \"cosmos-controller\";"
   echo "Database created successfully"
 fi
-
-echo "Setting up schema permissions for all users..."
-psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/cosmos-controller?sslmode=require" <<EOSQL
--- Grant schema usage to all users
-GRANT ALL ON SCHEMA public TO PUBLIC;
-
--- Grant default privileges for future tables and sequences
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO PUBLIC;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO PUBLIC;
-EOSQL
 
 echo "Database initialization complete"
 EOH
@@ -245,7 +232,7 @@ EOH
 
       # Request Vault access for database credentials
       vault {
-        policies = ["cosmos-controller", "nomad-database-access"]
+        policies = ["cosmos-controller", "db-access"]
       }
 
       config {
@@ -272,13 +259,13 @@ EOH
       # Template for Aurora database credentials from Vault
       template {
         data = <<EOH
-{{ with secret "database/creds/nomad-app-readwrite" }}
+{{ with secret "secret/data/aurora/master" }}
 DB_HOST={{ key "aurora/endpoint" }}
 DB_PORT={{ key "aurora/port" }}
 DB_NAME=cosmos-controller
-DB_USER={{ .Data.username }}
-DB_PASSWORD={{ .Data.password }}
-COSMOS_DB_URL=postgresql://{{ .Data.username }}:{{ .Data.password }}@{{ key "aurora/endpoint" }}:{{ key "aurora/port" }}/cosmos-controller?sslmode=require
+DB_USER={{ .Data.data.username }}
+DB_PASSWORD={{ .Data.data.password }}
+COSMOS_DB_URL=postgresql://{{ .Data.data.username }}:{{ .Data.data.password }}@{{ key "aurora/endpoint" }}:{{ key "aurora/port" }}/cosmos-controller?sslmode=require
 {{ end }}
 EOH
         destination = "secrets/db.env"
