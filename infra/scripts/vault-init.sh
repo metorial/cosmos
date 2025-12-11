@@ -378,11 +378,34 @@ path "database/creds/nomad-app-readwrite" {
 path "database/creds/nomad-app-readonly" {
   capabilities = ["read"]
 }
+path "secret/data/aurora/master" {
+  capabilities = ["read"]
+}
 DB_POLICY_EOF
+
+              # Also create db-access policy for jobs that need master credentials
+              vault policy write db-access - <<DB_ACCESS_POLICY_EOF
+path "secret/data/aurora/master" {
+  capabilities = ["read"]
+}
+DB_ACCESS_POLICY_EOF
 
               echo "Vault database secrets engine configured successfully for Aurora"
               echo "Database roles available: nomad-app-readonly, nomad-app-readwrite"
-              echo "Vault policies created: database-readonly, database-readwrite, nomad-database-access"
+              echo "Vault policies created: database-readonly, database-readwrite, nomad-database-access, db-access"
+
+              # Enable KV v2 secrets engine for storing Aurora master credentials
+              echo ""
+              echo "Enabling KV v2 secrets engine for Aurora master credentials..."
+              vault secrets enable -version=2 -path=secret kv 2>&1 | grep -v "path is already in use" || true
+              echo "KV v2 secrets engine enabled at path: secret/"
+
+              # Store Aurora master credentials in Vault
+              echo "Storing Aurora master credentials in Vault..."
+              vault kv put secret/aurora/master \
+                username="$DB_USERNAME" \
+                password="$DB_PASSWORD"
+              echo "Aurora master credentials stored at: secret/aurora/master"
 
               # Store Aurora connection info in Consul KV for Nomad jobs
               consul kv put aurora/endpoint "$DB_HOST"
