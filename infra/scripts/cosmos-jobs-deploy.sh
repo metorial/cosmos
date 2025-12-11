@@ -169,7 +169,7 @@ job "cosmos-controller" {
       }
 
       vault {
-        policies = ["db-access"]
+        policies = ["nomad-database-access", "db-access"]
       }
 
       config {
@@ -195,23 +195,23 @@ EOH
 set -e
 
 echo "==== Database Init ===="
-echo "DB_HOST: \$DB_HOST"
-echo "DB_PORT: \$DB_PORT"
-echo "DB_USER: \$DB_USER"
+echo "DB_HOST: $DB_HOST"
+echo "DB_PORT: $DB_PORT"
+echo "DB_USER: $DB_USER"
 echo "======================="
 
 echo "Checking if database exists..."
 # Temporarily disable exit on error for the grep check
 set +e
-psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/postgres?sslmode=require" -tc "SELECT 1 FROM pg_database WHERE datname = 'cosmos-controller'" | grep -q 1
-DB_EXISTS=\$?
+psql "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/postgres?sslmode=require" -tc "SELECT 1 FROM pg_database WHERE datname = 'cosmos-controller'" | grep -q 1
+DB_EXISTS=$?
 set -e
 
-if [ \$DB_EXISTS -eq 0 ]; then
+if [ $DB_EXISTS -eq 0 ]; then
   echo "Database 'cosmos-controller' already exists"
 else
   echo "Database 'cosmos-controller' does not exist, creating..."
-  psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/postgres?sslmode=require" -c "CREATE DATABASE \"cosmos-controller\";"
+  psql "postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/postgres?sslmode=require" -c "CREATE DATABASE \"cosmos-controller\";"
   echo "Database created successfully"
 fi
 
@@ -232,7 +232,7 @@ EOH
 
       # Request Vault access for database credentials
       vault {
-        policies = ["cosmos-controller", "db-access"]
+        policies = ["cosmos-controller", "nomad-database-access", "db-access"]
       }
 
       config {

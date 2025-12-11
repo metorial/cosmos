@@ -430,7 +430,7 @@ NOMAD_POLICY_EOF
 
           # Create token role for Nomad cluster
           vault write /auth/token/roles/nomad-cluster \
-            allowed_policies="cosmos-controller,cosmos-agent,nomad-database-access,database-readonly,database-readwrite" \
+            allowed_policies="cosmos-controller,cosmos-agent,db-access,nomad-database-access,database-readonly,database-readwrite" \
             disallowed_policies=nomad-server \
             explicit_max_ttl=0 \
             orphan=false \
