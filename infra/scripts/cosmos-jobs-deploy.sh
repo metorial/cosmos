@@ -212,16 +212,22 @@ set -e
 
 if [ \$DB_EXISTS -eq 0 ]; then
   echo "Database 'cosmos-controller' already exists"
-  echo "Granting permissions to current user..."
-  psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/cosmos-controller?sslmode=require" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO \"\$DB_USER\";" || echo "Permission grant may have failed, continuing..."
 else
   echo "Database 'cosmos-controller' does not exist, creating..."
-  psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/postgres?sslmode=require" -c "CREATE DATABASE \"cosmos-controller\" OWNER \"\$DB_USER\";"
-  echo "Database created successfully with ownership"
+  psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/postgres?sslmode=require" -c "CREATE DATABASE \"cosmos-controller\";"
+  echo "Database created successfully"
 fi
 
-echo "Ensuring current user has all necessary permissions..."
-psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/cosmos-controller?sslmode=require" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO \"\$DB_USER\";"
+echo "Setting up schema permissions for all users..."
+psql "postgresql://\$DB_USER:\$DB_PASSWORD@\$DB_HOST:\$DB_PORT/cosmos-controller?sslmode=require" <<EOSQL
+-- Grant schema usage to all users
+GRANT ALL ON SCHEMA public TO PUBLIC;
+
+-- Grant default privileges for future tables and sequences
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO PUBLIC;
+EOSQL
+
 echo "Database initialization complete"
 EOH
         destination = "local/init-db.sh"
