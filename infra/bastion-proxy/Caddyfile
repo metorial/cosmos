@@ -1,0 +1,52 @@
+{
+    layer4 {
+        # Consul UI and API (8500)
+        :8500 {
+            route {
+                proxy consul.service.consul:8500
+            }
+        }
+
+        # Vault API (8200)
+        :8200 {
+            route {
+                proxy vault.service.consul:8200
+            }
+        }
+
+        # Nomad UI and API (4646)
+        :4646 {
+            route {
+                proxy nomad.service.consul:4646
+            }
+        }
+
+        # Traefik UI (8081)
+        :8081 {
+            route {
+                proxy traefik.service.consul:8081
+            }
+        }
+
+        # Sentinel Controller (5020)
+        :5020 {
+            route {
+                proxy sentinel-controller.service.consul:5020
+            }
+        }
+
+        # Cosmos Controller (5010)
+        :5010 {
+            route {
+                proxy cosmos-controller.service.consul:5010
+            }
+        }
+    }
+}
+
+# Health check endpoint
+:8080 {
+    respond /health 200 {
+        body "healthy"
+    }
+}

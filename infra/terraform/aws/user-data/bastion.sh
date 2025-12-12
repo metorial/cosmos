@@ -27,6 +27,9 @@ source /tmp/system-setup.sh
 curl -fsSL "$SCRIPTS_URL/bastion-ssh.sh" -o /tmp/bastion-ssh.sh
 source /tmp/bastion-ssh.sh
 
+curl -fsSL "$SCRIPTS_URL/bastion-proxy.sh" -o /tmp/bastion-proxy.sh
+source /tmp/bastion-proxy.sh
+
 # Main Setup
 log_section "BASTION HOST SETUP"
 
@@ -65,6 +68,9 @@ log_success "HashiCorp CLI tools installed"
 generate_bastion_ssh_key "$CLUSTER_NAME"
 store_ssh_public_key_in_parameter_store "$CLUSTER_NAME" "$REGION"
 configure_ssh_client
+
+# Setup bastion proxy for internal services
+setup_bastion_proxy "$CLUSTER_NAME" "$REGION"
 
 log_section "BASTION HOST SETUP COMPLETE"
 log_info "Setup completed at: $(date)"

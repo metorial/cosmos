@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  proxy:
+    build: .
+    image: bastion-proxy:latest
+    container_name: bastion-proxy
+    network_mode: host
+    restart: unless-stopped
+    dns:
+      - 127.0.0.1
+    dns_search:
+      - service.consul
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
