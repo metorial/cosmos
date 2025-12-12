@@ -175,12 +175,12 @@ Environment="REGION=$region"
 WantedBy=multi-user.target
 EOF
 
-    # Enable and start the service in background
+    # Enable the service (don't start it yet - let systemd start it after nomad.service)
     systemctl daemon-reload
     systemctl enable nomad-vault-config.service
-    systemctl start nomad-vault-config.service &
 
     log_success "Nomad-Vault auto-configuration service installed"
+    log_info "Service will start automatically after Nomad is running"
     log_info "Nomad will automatically configure Vault integration when token becomes available"
 }
 
@@ -348,5 +348,28 @@ start_nomad() {
     systemctl enable nomad
     systemctl start nomad
 
+    # Wait for Nomad to be ready before proceeding
+    log_info "Waiting for Nomad agent to be ready..."
+    MAX_WAIT=30
+    WAIT_COUNT=0
+    while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+        if nomad node status >/dev/null 2>&1; then
+            log_success "Nomad agent is ready"
+            break
+        fi
+        sleep 1
+        WAIT_COUNT=$((WAIT_COUNT + 1))
+    done
+
+    if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+        log_warn "Nomad agent did not become ready within ${MAX_WAIT}s (may still be starting)"
+    fi
+
     log_success "Nomad started successfully"
+
+    # Start vault-config service if it exists (will configure Vault integration)
+    if systemctl is-enabled nomad-vault-config.service >/dev/null 2>&1; then
+        log_info "Starting Nomad-Vault auto-configuration..."
+        systemctl start nomad-vault-config.service &
+    fi
 }
