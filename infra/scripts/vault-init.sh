@@ -303,15 +303,16 @@ POLICY_EOF
           DB_READER_HOST=${AURORA_READER_ENDPOINT:-""}
           DB_PORT=${AURORA_PORT:-"5432"}
           DB_NAME=${AURORA_DATABASE:-"postgres"}
+          DB_SECRET_ARN=${AURORA_SECRET_ARN:-""}
 
           # Get master password from Secrets Manager
-          if [ -n "$DB_HOST" ]; then
+          if [ -n "$DB_HOST" ] && [ -n "$DB_SECRET_ARN" ]; then
             echo "Aurora endpoint found: $DB_HOST"
 
-            # Retrieve master password from Secrets Manager
+            # Retrieve master password from Secrets Manager using ARN
             DB_SECRET=$(aws secretsmanager get-secret-value \
               --region $REGION \
-              --secret-id "$CLUSTER_NAME-aurora-master-password" \
+              --secret-id "$DB_SECRET_ARN" \
               --query 'SecretString' \
               --output text 2>/dev/null || echo "")
 
@@ -552,6 +553,7 @@ Environment="AURORA_ENDPOINT=AURORA_ENDPOINT_PLACEHOLDER"
 Environment="AURORA_READER_ENDPOINT=AURORA_READER_ENDPOINT_PLACEHOLDER"
 Environment="AURORA_PORT=AURORA_PORT_PLACEHOLDER"
 Environment="AURORA_DATABASE=AURORA_DATABASE_PLACEHOLDER"
+Environment="AURORA_SECRET_ARN=AURORA_SECRET_ARN_PLACEHOLDER"
 
 [Install]
 WantedBy=multi-user.target
@@ -573,6 +575,7 @@ setup_vault_auto_init() {
     local aurora_port=${5:-"5432"}
     local aurora_database=${6:-"postgres"}
     local aurora_reader_endpoint=${7:-""}
+    local aurora_secret_arn=${8:-""}
 
     log_section "Setting up Vault auto-initialization"
 
@@ -584,6 +587,7 @@ setup_vault_auto_init() {
         sed -i "s|AURORA_ENDPOINT_PLACEHOLDER|$aurora_endpoint|g" /etc/systemd/system/vault-init.service
         sed -i "s|AURORA_PORT_PLACEHOLDER|$aurora_port|g" /etc/systemd/system/vault-init.service
         sed -i "s|AURORA_DATABASE_PLACEHOLDER|$aurora_database|g" /etc/systemd/system/vault-init.service
+        sed -i "s|AURORA_SECRET_ARN_PLACEHOLDER|$aurora_secret_arn|g" /etc/systemd/system/vault-init.service
 
         # Set reader endpoint (use writer endpoint if reader not provided)
         if [ -n "$aurora_reader_endpoint" ]; then
@@ -599,6 +603,7 @@ setup_vault_auto_init() {
         sed -i '/AURORA_PORT_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
         sed -i '/AURORA_DATABASE_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
         sed -i '/AURORA_READER_ENDPOINT_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
+        sed -i '/AURORA_SECRET_ARN_PLACEHOLDER/d' /etc/systemd/system/vault-init.service
         log_info "Aurora database not configured. Will skip database secrets engine setup."
     fi
 
