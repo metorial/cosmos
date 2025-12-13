@@ -47,7 +47,7 @@ setup_consul_client() {
     # Create Consul client configuration
     log_info "Creating Consul client configuration..."
     cat > /etc/consul.d/client.hcl <<EOF
-datacenter = "$cluster_name"
+datacenter = "$region"
 data_dir = "/opt/consul/data"
 client_addr = "0.0.0.0"
 bind_addr = "{{ GetPrivateIP }}"
@@ -135,13 +135,6 @@ deploy_bastion_proxy() {
     cat > "$proxy_dir/Caddyfile" <<'EOF'
 {
     layer4 {
-        # Consul UI and API (8500)
-        :8500 {
-            route {
-                proxy consul.service.consul:8500
-            }
-        }
-
         # Vault API (8200)
         :8200 {
             route {
@@ -239,7 +232,7 @@ services:
     network_mode: host
     restart: unless-stopped
     dns:
-      - 127.0.0.1
+      - 127.0.0.53
     dns_search:
       - service.consul
     logging:
@@ -264,13 +257,13 @@ EOF
     if docker compose ps | grep -q "Up"; then
         log_success "Bastion proxy deployed successfully"
         log_info "Proxy is forwarding the following ports:"
-        log_info "  - 8500: Consul UI/API"
-        log_info "  - 8200: Vault API"
-        log_info "  - 4646: Nomad UI/API"
-        log_info "  - 8081: Traefik UI"
-        log_info "  - 5020: Sentinel Controller"
-        log_info "  - 5010: Cosmos Controller"
-        log_info "  - 8080: Health check endpoint"
+        log_info "  - 8500: Consul UI/API (via local Consul client)"
+        log_info "  - 8200: Vault API (via proxy)"
+        log_info "  - 4646: Nomad UI/API (via proxy)"
+        log_info "  - 8081: Traefik UI (via proxy)"
+        log_info "  - 5020: Sentinel Controller (via proxy)"
+        log_info "  - 5010: Cosmos Controller (via proxy)"
+        log_info "  - 8080: Health check endpoint (via proxy)"
         return 0
     else
         log_error "Proxy container failed to start"
