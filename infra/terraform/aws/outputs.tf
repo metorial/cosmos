@@ -8,30 +8,34 @@ output "bastion_private_ip" {
   value       = aws_instance.bastion.private_ip
 }
 
-output "consul_server_ips" {
-  description = "Private IPs of Consul servers"
-  value       = aws_instance.consul_server[*].private_ip
+output "consul_server_asg_name" {
+  description = "Name of the Consul servers Auto Scaling Group"
+  value       = aws_autoscaling_group.consul_server.name
 }
 
-output "vault_server_ips" {
-  description = "Private IPs of Vault servers"
-  value       = aws_instance.vault_server[*].private_ip
+output "vault_server_asg_name" {
+  description = "Name of the Vault servers Auto Scaling Group"
+  value       = aws_autoscaling_group.vault_server.name
 }
 
-output "nomad_server_ips" {
-  description = "Private IPs of Nomad servers"
-  value       = aws_instance.nomad_server[*].private_ip
+output "nomad_server_asg_name" {
+  description = "Name of the Nomad servers Auto Scaling Group"
+  value       = aws_autoscaling_group.nomad_server.name
 }
 
-output "nomad_client_ips" {
-  description = "Private IPs of Nomad clients (general pool)"
-  value       = aws_instance.nomad_client[*].private_ip
+output "nomad_client_asg_name" {
+  description = "Name of the Nomad clients (general pool) Auto Scaling Group"
+  value       = aws_autoscaling_group.nomad_client.name
 }
 
-output "nomad_management_client_ips" {
-  description = "Private IPs of Nomad management clients"
-  value       = aws_instance.nomad_management_client[*].private_ip
+output "nomad_management_client_asg_name" {
+  description = "Name of the Nomad management clients Auto Scaling Group"
+  value       = aws_autoscaling_group.nomad_management_client.name
 }
+
+# To get instance IPs from ASG, use:
+# aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names <asg-name> --region <region>
+# or use AWS Console/CLI to query instances with the appropriate tags
 
 output "vpc_id" {
   description = "VPC ID"
@@ -50,7 +54,7 @@ output "ssh_connection_command" {
 
 output "all_services_tunnel" {
   description = "SSH tunnel command to access all UIs at once (via bastion proxy)"
-  value       = "ssh -L 8500:localhost:8500 -L 8200:localhost:8200 -L 4646:localhost:4646 -L 8081:localhost:8081 -L 5020:localhost:5020 -L 5010:localhost:5010 ubuntu@${aws_eip.bastion.public_ip}"
+  value       = "ssh -L 8500:localhost:8501 -L 8200:localhost:8200 -L 4646:localhost:4646 -L 8081:localhost:8081 -L 5020:localhost:5020 -L 5010:localhost:5010 ubuntu@${aws_eip.bastion.public_ip}"
 }
 
 output "alb_dns_name" {

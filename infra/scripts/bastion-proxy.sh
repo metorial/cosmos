@@ -135,6 +135,13 @@ deploy_bastion_proxy() {
     cat > "$proxy_dir/Caddyfile" <<'EOF'
 {
     layer4 {
+        # Consul Server UI/API (8501 -> consul servers on 8500)
+        :8501 {
+            route {
+                proxy consul.service.consul:8500
+            }
+        }
+
         # Vault API (8200)
         :8200 {
             route {
@@ -210,7 +217,7 @@ RUN groupadd -r caddy && \
     chown -R caddy:caddy /var/lib/caddy
 
 # Expose all the ports we're proxying
-EXPOSE 4646 5010 5020 8080 8081 8200 8500
+EXPOSE 4646 5010 5020 8080 8081 8200 8501
 
 # Run as caddy user
 USER caddy
@@ -258,6 +265,7 @@ EOF
         log_success "Bastion proxy deployed successfully"
         log_info "Proxy is forwarding the following ports:"
         log_info "  - 8500: Consul UI/API (via local Consul client)"
+        log_info "  - 8501: Consul Server UI/API (via proxy to consul servers)"
         log_info "  - 8200: Vault API (via proxy)"
         log_info "  - 4646: Nomad UI/API (via proxy)"
         log_info "  - 8081: Traefik UI (via proxy)"

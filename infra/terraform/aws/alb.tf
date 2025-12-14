@@ -81,12 +81,10 @@ resource "aws_lb_target_group" "traefik" {
   })
 }
 
-# Attach Nomad clients to target group
-resource "aws_lb_target_group_attachment" "traefik" {
-  count            = var.nomad_client_count
-  target_group_arn = aws_lb_target_group.traefik.arn
-  target_id        = aws_instance.nomad_client[count.index].id
-  port             = 80
+# Attach Nomad clients ASG to target group
+resource "aws_autoscaling_attachment" "nomad_client_alb" {
+  autoscaling_group_name = aws_autoscaling_group.nomad_client.name
+  lb_target_group_arn    = aws_lb_target_group.traefik.arn
 }
 
 # HTTP Listener - redirects to HTTPS

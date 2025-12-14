@@ -46,8 +46,20 @@ variable "allowed_cidr_blocks" {
 }
 
 # Consul Configuration
-variable "consul_server_count" {
-  description = "Number of Consul servers (min 3 for HA)"
+variable "consul_server_min_size" {
+  description = "Minimum number of Consul servers"
+  type        = number
+  default     = 3
+}
+
+variable "consul_server_max_size" {
+  description = "Maximum number of Consul servers"
+  type        = number
+  default     = 5
+}
+
+variable "consul_server_desired_capacity" {
+  description = "Desired number of Consul servers (min 3 for HA)"
   type        = number
   default     = 3
 }
@@ -59,8 +71,20 @@ variable "consul_instance_type" {
 }
 
 # Vault Configuration
-variable "vault_server_count" {
-  description = "Number of Vault servers (min 3 for HA)"
+variable "vault_server_min_size" {
+  description = "Minimum number of Vault servers"
+  type        = number
+  default     = 3
+}
+
+variable "vault_server_max_size" {
+  description = "Maximum number of Vault servers"
+  type        = number
+  default     = 5
+}
+
+variable "vault_server_desired_capacity" {
+  description = "Desired number of Vault servers (min 3 for HA)"
   type        = number
   default     = 3
 }
@@ -72,8 +96,20 @@ variable "vault_instance_type" {
 }
 
 # Nomad Configuration
-variable "nomad_server_count" {
-  description = "Number of Nomad servers (min 3 for HA)"
+variable "nomad_server_min_size" {
+  description = "Minimum number of Nomad servers"
+  type        = number
+  default     = 3
+}
+
+variable "nomad_server_max_size" {
+  description = "Maximum number of Nomad servers"
+  type        = number
+  default     = 5
+}
+
+variable "nomad_server_desired_capacity" {
+  description = "Desired number of Nomad servers (min 3 for HA)"
   type        = number
   default     = 3
 }
@@ -84,8 +120,20 @@ variable "nomad_server_instance_type" {
   default     = "t3.small"
 }
 
-variable "nomad_client_count" {
-  description = "Number of Nomad clients (general pool)"
+variable "nomad_client_min_size" {
+  description = "Minimum number of Nomad clients (general pool)"
+  type        = number
+  default     = 1
+}
+
+variable "nomad_client_max_size" {
+  description = "Maximum number of Nomad clients (general pool)"
+  type        = number
+  default     = 10
+}
+
+variable "nomad_client_desired_capacity" {
+  description = "Desired number of Nomad clients (general pool)"
   type        = number
   default     = 3
 }
@@ -96,8 +144,20 @@ variable "nomad_client_instance_type" {
   default     = "t3.medium"
 }
 
-variable "nomad_management_client_count" {
-  description = "Number of Nomad management clients"
+variable "nomad_management_client_min_size" {
+  description = "Minimum number of Nomad management clients"
+  type        = number
+  default     = 1
+}
+
+variable "nomad_management_client_max_size" {
+  description = "Maximum number of Nomad management clients"
+  type        = number
+  default     = 5
+}
+
+variable "nomad_management_client_desired_capacity" {
+  description = "Desired number of Nomad management clients"
   type        = number
   default     = 2
 }

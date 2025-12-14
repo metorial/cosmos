@@ -346,6 +346,38 @@ resource "aws_security_group" "nomad_client" {
 
 # Separate security group rules to avoid circular dependencies
 
+# Allow bastion to connect to Consul RPC for client operations
+resource "aws_security_group_rule" "consul_rpc_from_bastion" {
+  type                     = "ingress"
+  description              = "Consul RPC from bastion"
+  from_port                = 8300
+  to_port                  = 8300
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.bastion.id
+  security_group_id        = aws_security_group.consul_server.id
+}
+
+# Allow bastion to connect to Consul Serf LAN for joining cluster
+resource "aws_security_group_rule" "consul_serf_lan_tcp_from_bastion" {
+  type                     = "ingress"
+  description              = "Consul Serf LAN TCP from bastion"
+  from_port                = 8301
+  to_port                  = 8301
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.bastion.id
+  security_group_id        = aws_security_group.consul_server.id
+}
+
+resource "aws_security_group_rule" "consul_serf_lan_udp_from_bastion" {
+  type                     = "ingress"
+  description              = "Consul Serf LAN UDP from bastion"
+  from_port                = 8301
+  to_port                  = 8301
+  protocol                 = "udp"
+  source_security_group_id = aws_security_group.bastion.id
+  security_group_id        = aws_security_group.consul_server.id
+}
+
 # Allow Nomad clients to connect to Nomad server RPC (port 4647)
 resource "aws_security_group_rule" "nomad_server_rpc_from_clients" {
   type                     = "ingress"

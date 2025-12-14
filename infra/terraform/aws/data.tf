@@ -1,3 +1,6 @@
+# Get current AWS account information
+data "aws_caller_identity" "current" {}
+
 # Get Ubuntu 22.04 LTS AMI
 data "aws_ami" "ubuntu" {
   most_recent = true

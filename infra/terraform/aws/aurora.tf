@@ -42,6 +42,11 @@ resource "random_password" "aurora_master_password" {
   special = false
 }
 
+# Random ID for unique secret name (AWS doesn't allow recreating secrets with same name)
+resource "random_id" "unique_id" {
+  byte_length = 4
+}
+
 # Aurora PostgreSQL Cluster
 resource "aws_rds_cluster" "aurora" {
   cluster_identifier     = "${local.cluster_name}-aurora-cluster"
@@ -143,7 +148,7 @@ resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
 
 # Store master password in AWS Secrets Manager for emergency access
 resource "aws_secretsmanager_secret" "aurora_master_password" {
-  name                    = "${local.cluster_name}-aurora-master-password"
+  name                    = "${local.cluster_name}-aurora-master-password-${random_id.unique_id.hex}"
   description             = "Master password for Aurora PostgreSQL cluster (emergency use only - use Vault for application access)"
   recovery_window_in_days = 30
 
