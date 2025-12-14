@@ -23,14 +23,24 @@ output "nomad_server_asg_name" {
   value       = aws_autoscaling_group.nomad_server.name
 }
 
-output "nomad_client_asg_name" {
-  description = "Name of the Nomad clients (general pool) Auto Scaling Group"
-  value       = aws_autoscaling_group.nomad_client.name
+output "nomad_core_client_asg_name" {
+  description = "Name of the Nomad core clients Auto Scaling Group"
+  value       = aws_autoscaling_group.nomad_core_client.name
 }
 
 output "nomad_management_client_asg_name" {
   description = "Name of the Nomad management clients Auto Scaling Group"
   value       = aws_autoscaling_group.nomad_management_client.name
+}
+
+output "nomad_provider_client_asg_name" {
+  description = "Name of the Nomad provider clients Auto Scaling Group"
+  value       = aws_autoscaling_group.nomad_provider_client.name
+}
+
+output "nomad_compute_client_asg_name" {
+  description = "Name of the Nomad compute clients Auto Scaling Group"
+  value       = aws_autoscaling_group.nomad_compute_client.name
 }
 
 # To get instance IPs from ASG, use:

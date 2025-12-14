@@ -303,6 +303,7 @@ if [ "$TRAEFIK_RUNNING" = "no" ]; then
 job "traefik" {
   datacenters = ["*"]
   type        = "system"
+  node_pool   = "core"
 
   group "traefik" {
     network {

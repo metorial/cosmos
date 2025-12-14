@@ -81,9 +81,9 @@ resource "aws_lb_target_group" "traefik" {
   })
 }
 
-# Attach Nomad clients ASG to target group
-resource "aws_autoscaling_attachment" "nomad_client_alb" {
-  autoscaling_group_name = aws_autoscaling_group.nomad_client.name
+# Attach Nomad core clients ASG to target group
+resource "aws_autoscaling_attachment" "nomad_core_client_alb" {
+  autoscaling_group_name = aws_autoscaling_group.nomad_core_client.name
   lb_target_group_arn    = aws_lb_target_group.traefik.arn
 }
 

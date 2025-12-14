@@ -120,26 +120,26 @@ variable "nomad_server_instance_type" {
   default     = "t3.small"
 }
 
-variable "nomad_client_min_size" {
-  description = "Minimum number of Nomad clients (general pool)"
+variable "nomad_core_client_min_size" {
+  description = "Minimum number of Nomad core clients"
   type        = number
   default     = 1
 }
 
-variable "nomad_client_max_size" {
-  description = "Maximum number of Nomad clients (general pool)"
+variable "nomad_core_client_max_size" {
+  description = "Maximum number of Nomad core clients"
   type        = number
   default     = 10
 }
 
-variable "nomad_client_desired_capacity" {
-  description = "Desired number of Nomad clients (general pool)"
+variable "nomad_core_client_desired_capacity" {
+  description = "Desired number of Nomad core clients"
   type        = number
   default     = 3
 }
 
-variable "nomad_client_instance_type" {
-  description = "Instance type for Nomad clients"
+variable "nomad_core_client_instance_type" {
+  description = "Instance type for Nomad core clients"
   type        = string
   default     = "t3.medium"
 }
@@ -164,6 +164,54 @@ variable "nomad_management_client_desired_capacity" {
 
 variable "nomad_management_client_instance_type" {
   description = "Instance type for Nomad management clients"
+  type        = string
+  default     = "t3.medium"
+}
+
+variable "nomad_provider_client_min_size" {
+  description = "Minimum number of Nomad provider clients"
+  type        = number
+  default     = 2
+}
+
+variable "nomad_provider_client_max_size" {
+  description = "Maximum number of Nomad provider clients"
+  type        = number
+  default     = 5
+}
+
+variable "nomad_provider_client_desired_capacity" {
+  description = "Desired number of Nomad provider clients"
+  type        = number
+  default     = 2
+}
+
+variable "nomad_provider_client_instance_type" {
+  description = "Instance type for Nomad provider clients"
+  type        = string
+  default     = "t3.medium"
+}
+
+variable "nomad_compute_client_min_size" {
+  description = "Minimum number of Nomad compute clients"
+  type        = number
+  default     = 2
+}
+
+variable "nomad_compute_client_max_size" {
+  description = "Maximum number of Nomad compute clients"
+  type        = number
+  default     = 5
+}
+
+variable "nomad_compute_client_desired_capacity" {
+  description = "Desired number of Nomad compute clients"
+  type        = number
+  default     = 2
+}
+
+variable "nomad_compute_client_instance_type" {
+  description = "Instance type for Nomad compute clients"
   type        = string
   default     = "t3.medium"
 }
