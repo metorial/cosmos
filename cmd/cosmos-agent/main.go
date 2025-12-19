@@ -105,6 +105,7 @@ func main() {
 
 	grpcConfig := &agentgrpc.ClientConfig{
 		ControllerURL:     config.ControllerURL,
+		Tags:              config.Tags,
 		DB:                db,
 		ReconnectInterval: 5 * time.Second,
 	}

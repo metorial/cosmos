@@ -286,6 +286,7 @@ type AgentHeartbeat struct {
 	AgentVersion      string                 `protobuf:"bytes,1,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
 	Metadata          map[string]string      `protobuf:"bytes,2,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	ComponentStatuses []*ComponentStatus     `protobuf:"bytes,3,rep,name=component_statuses,json=componentStatuses,proto3" json:"component_statuses,omitempty"`
+	Tags              []string               `protobuf:"bytes,4,rep,name=tags,proto3" json:"tags,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -337,6 +338,13 @@ func (x *AgentHeartbeat) GetMetadata() map[string]string {
 func (x *AgentHeartbeat) GetComponentStatuses() []*ComponentStatus {
 	if x != nil {
 		return x.ComponentStatuses
+	}
+	return nil
+}
+
+func (x *AgentHeartbeat) GetTags() []string {
+	if x != nil {
+		return x.Tags
 	}
 	return nil
 }
@@ -962,11 +970,12 @@ const file_internal_proto_cosmos_proto_rawDesc = "" +
 	"deployment\x124\n" +
 	"\aremoval\x18\x03 \x01(\v2\x18.cosmos.ComponentRemovalH\x00R\aremoval\x12@\n" +
 	"\rhealth_config\x18\x04 \x01(\v2\x19.cosmos.HealthCheckConfigH\x00R\fhealthConfigB\t\n" +
-	"\amessage\"\xfc\x01\n" +
+	"\amessage\"\x90\x02\n" +
 	"\x0eAgentHeartbeat\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x12@\n" +
 	"\bmetadata\x18\x02 \x03(\v2$.cosmos.AgentHeartbeat.MetadataEntryR\bmetadata\x12F\n" +
-	"\x12component_statuses\x18\x03 \x03(\v2\x17.cosmos.ComponentStatusR\x11componentStatuses\x1a;\n" +
+	"\x12component_statuses\x18\x03 \x03(\v2\x17.cosmos.ComponentStatusR\x11componentStatuses\x12\x12\n" +
+	"\x04tags\x18\x04 \x03(\tR\x04tags\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb6\x01\n" +

@@ -3,7 +3,7 @@
     {
       "type": "service",
       "name": "nginx-demo",
-      "hash": "nginx-demo-v3",
+      "hash": "nginx-demo-v4",
       "tags": [
         "service"
       ],
@@ -16,7 +16,7 @@
         "Datacenters": [
           "*"
         ],
-        "NodePool": "default",
+        "NodePool": "core",
         "TaskGroups": [
           {
             "Name": "nginx",

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ type Client struct {
 	hostname      string
 	tlsConfig     *tls.Config
 	db            *database.AgentDB
+	tags          []string
 
 	conn   *grpc.ClientConn
 	stream pb.CosmosController_StreamAgentMessagesClient
@@ -42,6 +44,7 @@ type Client struct {
 type ClientConfig struct {
 	ControllerURL     string
 	Hostname          string
+	Tags              string
 	TLSConfig         *tls.Config
 	DB                *database.AgentDB
 	ReconnectInterval time.Duration
@@ -62,6 +65,8 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		reconnectInterval = 5 * time.Second
 	}
 
+	tags := parseTags(config.Tags)
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Client{
@@ -69,12 +74,36 @@ func NewClient(config *ClientConfig) (*Client, error) {
 		hostname:          hostname,
 		tlsConfig:         config.TLSConfig,
 		db:                config.DB,
+		tags:              tags,
 		reconnectInterval: reconnectInterval,
 		outgoingCh:        make(chan *pb.AgentMessage, 100),
 		incomingCh:        make(chan *pb.ControllerMessage, 100),
 		ctx:               ctx,
 		cancel:            cancel,
 	}, nil
+}
+
+func parseTags(tagsStr string) []string {
+	if tagsStr == "" {
+		return []string{}
+	}
+
+	rawTags := strings.Split(tagsStr, ",")
+	tagMap := make(map[string]bool)
+
+	for _, tag := range rawTags {
+		tag = strings.TrimSpace(tag)
+		if tag != "" {
+			tagMap[tag] = true
+		}
+	}
+
+	tags := make([]string, 0, len(tagMap))
+	for tag := range tagMap {
+		tags = append(tags, tag)
+	}
+
+	return tags
 }
 
 func (c *Client) Start() error {
@@ -292,6 +321,7 @@ func (c *Client) SendHeartbeat() error {
 			Heartbeat: &pb.AgentHeartbeat{
 				AgentVersion:      agent.Version,
 				ComponentStatuses: componentStatuses,
+				Tags:              c.tags,
 			},
 		},
 	}
