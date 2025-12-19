@@ -12,6 +12,7 @@ type AgentConfig struct {
 	AgentPort     string
 	DataDir       string
 	LogLevel      string
+	Tags          string
 
 	TLSEnabled  bool
 	TLSCertPath string
@@ -65,6 +66,7 @@ func LoadAgentConfig() (*AgentConfig, error) {
 		AgentPort:     getEnv("COSMOS_AGENT_PORT", "9092"),
 		DataDir:       getEnv("COSMOS_DATA_DIR", "/var/lib/cosmos/agent"),
 		LogLevel:      getEnv("COSMOS_LOG_LEVEL", "info"),
+		Tags:          getEnv("COSMOS_TAGS", ""),
 
 		TLSEnabled:  getEnvBool("COSMOS_TLS_ENABLED", true),
 		TLSCertPath: getEnv("COSMOS_TLS_CERT", "/etc/cosmos/agent/agent.crt"),

@@ -81,7 +81,7 @@ start_vault
 setup_vault_auto_init "$CLUSTER_NAME" "$REGION" "$INSTANCE_NAME" "$AURORA_ENDPOINT" "$AURORA_PORT" "$AURORA_DATABASE" "$AURORA_READER_ENDPOINT" "$AURORA_SECRET_ARN"
 
 # Install agents
-install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"
+install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME" "vault_server"
 install_sentinel_agent "$COMMANDER_ADDR" "$CLUSTER_NAME"
 start_agents
 

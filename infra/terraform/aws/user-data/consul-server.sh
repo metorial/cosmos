@@ -60,7 +60,7 @@ start_consul
 configure_consul_dns
 
 # Install agents
-install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"
+install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME" "consul_server"
 install_sentinel_agent "$COMMANDER_ADDR" "$CLUSTER_NAME"
 start_agents
 

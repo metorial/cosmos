@@ -34,6 +34,7 @@ message AgentHeartbeat {
   string agent_version = 1;
   map<string, string> metadata = 2;
   repeated ComponentStatus component_statuses = 3;
+  repeated string tags = 4;
 }
 
 message ComponentStatus {

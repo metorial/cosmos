@@ -74,7 +74,7 @@ create_nomad_systemd_service "client"
 start_nomad
 
 # Install agents
-install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME"
+install_cosmos_agent "$CONTROLLER_ADDR" "$CLUSTER_NAME" "nomad_client,$NODE_POOL,$NODE_CLASS"
 install_sentinel_agent "$COMMANDER_ADDR" "$CLUSTER_NAME"
 start_agents
 

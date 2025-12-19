@@ -150,6 +150,7 @@ func (s *Server) handleHeartbeat(hostname string, heartbeat *pb.AgentHeartbeat) 
 	log.WithFields(log.Fields{
 		"hostname": hostname,
 		"version":  heartbeat.AgentVersion,
+		"tags":     heartbeat.Tags,
 	}).Debug("Received heartbeat")
 
 	componentCount := len(heartbeat.ComponentStatuses)
@@ -166,9 +167,12 @@ func (s *Server) handleHeartbeat(hostname string, heartbeat *pb.AgentHeartbeat) 
 		return err
 	}
 
+	// Merge agent tags with the "all" tag
+	tags := mergeTags(heartbeat.Tags, "all")
+
 	node := &database.Node{
 		Hostname: hostname,
-		Tags:     []string{"all"}, // pq.StringArray will handle conversion
+		Tags:     tags,
 		Online:   true,
 		HasAgent: true,
 		LastSeen: &agent.LastHeartbeat,
@@ -189,6 +193,33 @@ func (s *Server) handleHeartbeat(hostname string, heartbeat *pb.AgentHeartbeat) 
 	}
 
 	return nil
+}
+
+// mergeTags merges provided tags and ensures certain tags (like "all") are always included
+func mergeTags(agentTags []string, requiredTags ...string) []string {
+	tagMap := make(map[string]bool)
+
+	// Add agent tags
+	for _, tag := range agentTags {
+		if tag != "" {
+			tagMap[tag] = true
+		}
+	}
+
+	// Add required tags
+	for _, tag := range requiredTags {
+		if tag != "" {
+			tagMap[tag] = true
+		}
+	}
+
+	// Convert to slice
+	tags := make([]string, 0, len(tagMap))
+	for tag := range tagMap {
+		tags = append(tags, tag)
+	}
+
+	return tags
 }
 
 func (s *Server) handleComponentStatus(hostname string, status *pb.ComponentStatus) error {

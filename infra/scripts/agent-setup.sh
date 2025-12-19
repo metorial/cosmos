@@ -4,6 +4,7 @@
 install_cosmos_agent() {
     local controller_addr=$1
     local cluster_name=$2
+    local tags=$3
 
     log_section "Installing cosmos-agent"
 
@@ -56,6 +57,7 @@ ExecStart=/bin/bash -c '/usr/bin/docker run --rm --name cosmos-agent \\
   -v /etc/cosmos:/etc/cosmos \\
   -e COSMOS_CONTROLLER_URL=cosmos-controller.service.consul:9091 \\
   -e COSMOS_DATA_DIR=/data \\
+  -e COSMOS_TAGS=$tags \\
   -e CLUSTER_NAME=$cluster_name \\
   -e NODE_ID=$node_id \\
   -e VAULT_ADDR=http://active.vault.service.consul:8200 \\
